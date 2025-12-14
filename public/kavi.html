@@ -1,0 +1,586 @@
+
+
+
+
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GameZone — Join Match (Premium)</title>
+  <meta name="color-scheme" content="dark">
+  <style>
+    /* Modern premium dark UI */
+    :root{
+      --bg: #06070a;
+      --panel: #0f1720;
+      --muted: #9aa4b2;
+      --accent: #00d5ff;
+      --accent-2: #6ee7b7;
+      --glass: rgba(255,255,255,0.03);
+      --danger: #ff6b6b;
+      --success: #4ade80;
+      --input: #0b1220;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(0,213,255,0.04), transparent),
+                  linear-gradient(180deg,#020204 0%, #071018 100%);
+      color:#dfeefc;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      padding:28px;
+      display:flex;
+      justify-content:center;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      min-height:100vh;
+      align-items:flex-start;
+    }
+
+    .container{
+      width:100%;
+      max-width:1040px;
+      display:grid;
+      grid-template-columns: 420px 1fr;
+      gap:20px;
+    }
+
+    /* Left card -- selection & promo */
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+      border: 1px solid rgba(255,255,255,0.03);
+      border-radius:14px;
+      padding:18px;
+      box-shadow: 0 8px 40px rgba(1,7,18,0.6);
+    }
+
+    .brand{
+      display:flex;gap:12px;align-items:center;margin-bottom:10px;
+    }
+    .logo{
+      width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+      display:inline-block;box-shadow:0 6px 18px rgba(0,0,0,0.6);
+    }
+    h1{font-size:18px;margin:0}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+
+    .modes { display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-top:16px; }
+    .mode-tile{
+      background:var(--glass); border-radius:10px; padding:12px; text-align:center; cursor:pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    .mode-tile:hover{ transform:translateY(-6px); box-shadow: 0 12px 36px rgba(0,0,0,0.6); }
+    .mode-tile h3{ margin:0;color:var(--accent); }
+    .mode-tile p{ margin:6px 0 0;color:var(--muted); font-size:12px; }
+
+    .small-note{ color:var(--muted); font-size:12px; margin-top:12px; text-align:center; }
+
+    /* Right panel: form */
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+      border-radius:14px;
+      padding:20px;
+      border:1px solid rgba(255,255,255,0.03);
+      min-height:520px;
+      box-shadow: 0 8px 40px rgba(1,7,18,0.6);
+    }
+    .panel h2{ margin:0 0 6px; font-size:16px; color:var(--accent) }
+    .panel p.desc{ margin:0 0 14px; color:var(--muted); font-size:13px }
+
+    label{ display:block; font-size:13px; color:var(--muted); margin-top:12px; }
+    input[type=text], input[type=number], select, .inline input, .inline select {
+      width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04);
+      background:var(--input); color:#dfeefc; font-size:14px; margin-top:6px;
+    }
+    .inline{ display:flex; gap:8px; align-items:center }
+    .inline select, .inline input { flex:1 }
+
+    .ff-settings{ margin-top:10px; padding:12px; border-radius:10px; background: rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.01); display:none; }
+
+    .guns{ max-height:220px; overflow:auto; padding:8px; display:none; border-radius:8px; background:rgba(255,255,255,0.01); margin-top:8px; border:1px solid rgba(255,255,255,0.02) }
+    .gun-row{ display:flex; flex-wrap:wrap; gap:8px; }
+    .gun-row label{ display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px; font-size:13px; color:#cfe9ff; background:transparent; border:1px solid rgba(255,255,255,0.02); cursor:pointer; }
+
+    .controls{ display:flex; gap:12px; margin-top:16px; align-items:center; }
+    .btn{
+      border-radius:10px; padding:10px 14px; border:none; cursor:pointer; font-weight:700;
+    }
+    .btn-primary{ background: linear-gradient(90deg,var(--accent),var(--accent-2)); color:#022026; box-shadow: 0 8px 30px rgba(0,213,255,0.06); }
+    .btn-ghost{ background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.04); }
+
+    .message{ margin-top:14px; font-weight:700; text-align:center; color:var(--danger); }
+    .message.ok{ color:var(--success); }
+
+    /* responsive */
+    @media (max-width:980px){
+      .container{ grid-template-columns: 1fr; padding-bottom:30px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Left: selection -->
+    <div class="card">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>BGMI & Free Fire Match War</h1>
+          <p class="lead">Pick match size, choose winning system for team matches, then configure settings and join.</p>
+        </div>
+      </div>
+
+      <div class="modes" id="modeSection" aria-label="Match types">
+        <div class="mode-tile" onclick="openMatchForm('1v1')"><h3>1v1</h3><p>Solo vs Solo</p></div>
+        <div class="mode-tile" onclick="openMatchForm('2v2')"><h3>2v2</h3><p>Duo Battles</p></div>
+        <div class="mode-tile" onclick="openMatchForm('3v3')"><h3>3v3</h3><p>Triple Team War</p></div>
+        <div class="mode-tile" onclick="openMatchForm('4v4')"><h3>4v4</h3><p>Squad Fight</p></div>
+      </div>
+
+      <div style="margin-top:14px">
+        <div id="prizeSystemSection" style="display:none;text-align:center">
+          <h3 style="margin:0 0 8px;color:var(--muted)">Select Winning System</h3>
+          <div class="modes" style="grid-template-columns:repeat(2,1fr);">
+            <div class="mode-tile" onclick="selectPrizeSystem('kill_based')"><h3>Kill-Based</h3><p>Prize by kills</p></div>
+            <div class="mode-tile" onclick="selectPrizeSystem('team_equal')"><h3>Team Equal</h3><p>Split equally</p></div>
+          </div>
+          <div style="margin-top:10px;text-align:center;">
+            <button class="btn btn-ghost" onclick="backToModes()">⬅ Back</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="small-note">More updates coming soon — optimized for mobile and desktop.</div>
+    </div>
+
+    <!-- Right: form -->
+    <div class="panel" role="region" aria-labelledby="join-title">
+      <h2 id="join-title">Join Match</h2>
+      <p class="desc">When you pick Free Fire you'll see additional game settings and a full gun selection for advanced rooms.</p>
+
+      <form id="matchForm" onsubmit="return false;" aria-describedby="form-help">
+        <input type="hidden" id="type" />
+        <input type="hidden" id="prizeSystem" />
+
+        <label>Game</label>
+        <select id="game" onchange="updateGameOptions()">
+          <option value="BGMI">BGMI</option>
+          <option value="PUBG">PUBG</option>
+          <option value="Free Fire">Free Fire</option>
+        </select>
+
+        <label>Mode</label>
+        <select id="mode" onchange="updateMapOptions()"></select>
+
+        <div id="mapSection" style="display:none">
+          <label>Map</label>
+          <select id="map"></select>
+        </div>
+
+        <div id="freeFireFields" class="ff-settings" aria-hidden="true">
+          <label>Headshot</label>
+          <select id="headshot">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+
+          <label>Character Skill</label>
+          <select id="characterSkill">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+
+          <label>Gun Attributes</label>
+          <select id="gunAttributes">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+
+          <label>Throwable Limit</label>
+          <select id="throwableLimit">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+
+          <label>Room Type</label>
+          <select id="roomType" onchange="toggleGunSelection()">
+            <option value="Regular">Regular</option>
+            <option value="Advance">Advance</option>
+          </select>
+
+          <div id="gunSelection" class="guns" aria-hidden="true" aria-label="Gun selection (Advance)">
+            <div id="gunsList" class="gun-row" role="list"></div>
+          </div>
+        </div>
+
+        <label>Game UID</label>
+        <input id="uid" type="text" placeholder="Enter your game UID" />
+
+        <label>WhatsApp number</label>
+        <div class="inline">
+          <select id="countryCode">
+            <option value="+91">+91 (India)</option>
+            <option value="+1">+1 (USA)</option>
+            <option value="+44">+44 (UK)</option>
+            <option value="+61">+61 (AUS)</option>
+          </select>
+          <input id="whatsappNumber" type="text" placeholder="e.g. 9876543210" />
+        </div>
+
+        <label>Entry fee</label>
+        <div style="display:flex;gap:8px">
+          <select id="fee" onchange="toggleCustomFee()">
+            <option value="50">₹50</option>
+            <option value="100">₹100</option>
+            <option value="150">₹150</option>
+            <option value="200">₹200</option>
+            <option value="custom">Custom</option>
+          </select>
+          <input id="customFee" type="number" min="50" placeholder="Custom (min ₹50)" style="display:none"/>
+        </div>
+
+        <div class="controls">
+          <button class="btn btn-primary" onclick="joinMatch()">Join Match</button>
+          <button type="button" class="btn btn-ghost" onclick="showHome()">Cancel</button>
+        </div>
+
+        <div id="form-message" class="message" role="status" aria-live="polite"></div>
+        <div id="form-help" class="small-note" style="margin-top:10px;color:var(--muted)">Prize system is selected in the left panel for team matches.</div>
+      </form>
+    </div>
+  </div>
+
+<script>
+/*
+  Premium merged front-end script.
+  - Edit API_BASE to point to your backend wallet API (no trailing slash).
+  - Default points to: http://localhost:5000/api/wallet
+*/
+const API_BASE = "http://localhost:5000/api/wallet"; // <- change if needed (empty string '' for same origin)
+const TOKEN = localStorage.getItem('token') || '';
+
+// UI state
+let selectedType = '';
+let selectedPrizeSystem = null;
+
+// lists
+const BGMI_PUBG_MODES = ["TDM", "Gun Game"];
+const FF_MODES = ["Clash Squad", "Lone Wolf"];
+const CLASH_SQUAD_MAPS = ["Bermuda", "Alpine", "Kalahari", "Purgatory", "Nexterra"];
+const LONE_WOLF_MAPS = ["Iron Cage"];
+
+// full gun list
+const GUNS_FULL = [
+  "AK","M4A1","SCAR","GROZA","FAMAS","AN94","XM8","M14","PARAFAL","KINGFISHER","AUG","AC80",
+  "MP40","MP5","UMP","VSS","THOMPSON","VECTOR","BIZON","UZI","MAC10",
+  "AWM","KAR98K","M82B","M24","SVD","SKS","WOODPECKER",
+  "M1014","M1887","MAG7","SPAS12","Trogon",
+  "USP","G18","M500","Desert Eagle","Treatment Pistol","Hand Cannon",
+  "M79","RGS50","MGL140",
+  "Plasma Gun","Laser Gun (CS)","CG15","Crossbow","Flame Bow"
+];
+
+// DOM refs
+const modeSection = document.getElementById('modeSection');
+const prizeSystemSection = document.getElementById('prizeSystemSection');
+const formMessage = document.getElementById('form-message');
+
+const gameEl = document.getElementById('game');
+const modeEl = document.getElementById('mode');
+const mapSection = document.getElementById('mapSection');
+const mapEl = document.getElementById('map');
+
+const freeFireFields = document.getElementById('freeFireFields');
+const roomTypeEl = document.getElementById('roomType');
+const gunSelection = document.getElementById('gunSelection');
+const gunsList = document.getElementById('gunsList');
+
+const uidEl = document.getElementById('uid');
+const countryCodeEl = document.getElementById('countryCode');
+const whatsappEl = document.getElementById('whatsappNumber');
+
+const feeEl = document.getElementById('fee');
+const customFeeEl = document.getElementById('customFee');
+
+// small helpers
+function show(el){ if(!el) return; el.style.display = 'block'; }
+function hide(el){ if(!el) return; el.style.display = 'none'; }
+function setMessage(txt, danger=true){
+  formMessage.textContent = txt || '';
+  if(!txt) return;
+  formMessage.classList.toggle('ok', !danger);
+  formMessage.style.color = danger ? getComputedStyle(document.documentElement).getPropertyValue('--danger') : getComputedStyle(document.documentElement).getPropertyValue('--success');
+}
+
+// Flow: pick mode -> (if team) pick prize -> fill form
+function openMatchForm(type){
+  selectedType = type;
+  document.getElementById('type').value = type;
+  // hide left selections, show prize if needed
+  hide(modeSection);
+  if(type === '1v1'){
+    selectedPrizeSystem = 'kill_based';
+    document.getElementById('prizeSystem').value = selectedPrizeSystem;
+    showForm();
+  } else {
+    show(prizeSystemSection);
+  }
+}
+function selectPrizeSystem(ps){
+  selectedPrizeSystem = ps;
+  document.getElementById('prizeSystem').value = ps;
+  hide(prizeSystemSection);
+  showForm();
+}
+function backToModes(){
+  hide(prizeSystemSection);
+  show(modeSection);
+}
+function showHome(){
+  selectedType = '';
+  selectedPrizeSystem = null;
+  document.getElementById('type').value = '';
+  document.getElementById('prizeSystem').value = '';
+  hide(document.querySelector('.panel') /* not required but keep */);
+  // reset form UI and navigate client-side:
+  // redirect or just show selection again:
+  show(modeSection);
+  setMessage('');
+  // Make sure form visible (panel isn't hidden in markup)
+  // there's no special hide for the right panel; user can fill again.
+}
+function showForm(){
+  // reveal/upadte form data
+  updateGameOptions();
+  setMessage('');
+  // ensure right panel visible — it's always visible in layout; just remove any stale message
+  // Put a small title update
+  const title = document.getElementById('join-title');
+  title.textContent = selectedType ? `Join ${selectedType} Match` : 'Join Match';
+  // scroll to form on small screens
+  window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
+}
+
+// Game / mode / map logic
+function updateGameOptions(){
+  const g = gameEl.value;
+  modeEl.innerHTML = '';
+  mapEl.innerHTML = '';
+  if(g === 'BGMI' || g === 'PUBG'){
+    BGMI_PUBG_MODES.forEach(m => {
+      const o = document.createElement('option'); o.value = m; o.textContent = m; modeEl.appendChild(o);
+    });
+    hide(freeFireFields);
+    hide(mapSection);
+  } else if(g === 'Free Fire'){
+    FF_MODES.forEach(m => {
+      const o = document.createElement('option'); o.value = m; o.textContent = m; modeEl.appendChild(o);
+    });
+    show(freeFireFields);
+    show(mapSection);
+  } else {
+    hide(freeFireFields);
+    hide(mapSection);
+  }
+  updateMapOptions();
+  toggleGunSelection(); // reset gun UI
+}
+
+function updateMapOptions(){
+  const g = gameEl.value;
+  const m = modeEl.value;
+  mapEl.innerHTML = '';
+  if(g !== 'Free Fire'){
+    hide(mapSection);
+    return;
+  }
+  show(mapSection);
+  let maps = [];
+  if(m === 'Clash Squad') maps = CLASH_SQUAD_MAPS;
+  if(m === 'Lone Wolf') maps = LONE_WOLF_MAPS;
+  maps.forEach(mp => {
+    const o = document.createElement('option'); o.value = mp; o.textContent = mp; mapEl.appendChild(o);
+  });
+}
+
+function toggleGunSelection(){
+  if(roomTypeEl.value === 'Advance'){
+    show(gunSelection);
+    // render all guns grouped
+    gunsList.innerHTML = '';
+    const grouped = {
+      AR: ["AK","M4A1","SCAR","GROZA","FAMAS","AN94","XM8","M14","PARAFAL","KINGFISHER","AUG","AC80"],
+      SMG: ["MP40","MP5","UMP","VSS","THOMPSON","VECTOR","BIZON","UZI","MAC10"],
+      SNIPER: ["AWM","KAR98K","M82B","M24","SVD","SKS","WOODPECKER"],
+      SHOTGUN: ["M1014","M1887","MAG7","SPAS12","Trogon"],
+      PISTOLS: ["USP","G18","M500","Desert Eagle","Treatment Pistol","Hand Cannon"],
+      LAUNCHERS: ["M79","RGS50","MGL140"],
+      SPECIAL: ["Plasma Gun","Laser Gun (CS)","CG15","Crossbow","Flame Bow"]
+    };
+    for(const cat in grouped){
+      // category label
+      const catLabel = document.createElement('div');
+      catLabel.style.width = '100%';
+      catLabel.style.fontSize = '12px';
+      catLabel.style.color = 'var(--muted)';
+      catLabel.style.margin = '8px 0 4px';
+      catLabel.textContent = cat;
+      gunsList.appendChild(catLabel);
+      grouped[cat].forEach(g => {
+        const id = 'g_' + g.replace(/\s+/g,'_');
+        const label = document.createElement('label');
+        label.innerHTML = `<input type="checkbox" id="${id}" name="guns" value="${g}" style="margin-right:6px"> ${g}`;
+        gunsList.appendChild(label);
+      });
+    }
+    gunSelection.setAttribute('aria-hidden', 'false');
+  } else {
+    hide(gunSelection);
+    gunsList.innerHTML = '';
+    gunSelection.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function toggleCustomFee(){
+  if(feeEl.value === 'custom') show(customFeeEl); else hide(customFeeEl);
+}
+
+// Join flow: optional deduct -> joins
+async function joinMatch(){
+  setMessage('');
+  // validations
+  if(!selectedType){
+    setMessage('Select match type on the left first');
+    return;
+  }
+  if(!selectedPrizeSystem){
+    setMessage('Select prize system (teams) or pick 1v1 which defaults to kill_based');
+    return;
+  }
+
+  const game = gameEl.value;
+  const mode = modeEl.value;
+  const map = mapEl.value || undefined;
+  const uid = (uidEl.value || '').trim();
+  const cc = (countryCodeEl.value || '').trim();
+  const whatsappRaw = (whatsappEl.value || '').replace(/[\s-]/g,'').trim();
+  const feeVal = feeEl.value === 'custom' ? parseInt((customFeeEl.value||'0'),10) : parseInt(feeEl.value,10);
+  const headshot = document.getElementById('headshot')?.value === 'true';
+  const characterSkill = document.getElementById('characterSkill')?.value === 'true';
+  const gunAttributes = document.getElementById('gunAttributes')?.value === 'true';
+  const throwableLimit = document.getElementById('throwableLimit')?.value === 'true';
+  const roomType = roomTypeEl.value;
+
+  if(!uid){ setMessage('Enter your Game UID'); return; }
+  if(!cc || !cc.startsWith('+')){ setMessage('Select a valid country code'); return; }
+  if(!/^\d{10,15}$/.test(whatsappRaw)){ setMessage('Enter a valid WhatsApp number (10–15 digits)'); return; }
+  if(isNaN(feeVal) || feeVal < 0){ setMessage('Enter a valid entry fee'); return; }
+
+  // Free Fire mode/map validation
+  if(game === 'Free Fire'){
+    if(!['Clash Squad','Lone Wolf'].includes(mode)){
+      setMessage('Invalid Free Fire mode'); return;
+    }
+    if(mode === 'Clash Squad' && (!map || !CLASH_SQUAD_MAPS.includes(map))){
+      setMessage('Select a valid Clash Squad map'); return;
+    }
+    if(mode === 'Lone Wolf' && map !== 'Iron Cage'){
+      setMessage('Lone Wolf only supports Iron Cage'); return;
+    }
+  }
+
+  // collect selected guns if Advance
+  const selectedGuns = [];
+  if(game === 'Free Fire' && roomType === 'Advance'){
+    document.querySelectorAll('#gunsList input[type=checkbox]:checked').forEach(cb => selectedGuns.push(cb.value));
+  }
+
+  // build payload
+  const payload = {
+    type: selectedType,
+    game,
+    mode,
+    fee: feeVal,
+    uid,
+    prizeSystem: selectedPrizeSystem,
+    countryCode: cc,
+    whatsappNumber: whatsappRaw,
+    map,
+    headshot,
+    characterSkill,
+    gunAttributes,
+    throwableLimit,
+    selectedGuns
+  };
+
+  try{
+    // optional deduct step
+    if(API_BASE && API_BASE.trim() !== ''){
+      setMessage('💰 Deducting entry fee...', false);
+      const deductRes = await fetch(`${API_BASE}/deduct`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {}) },
+        body: JSON.stringify({ fee: feeVal })
+      });
+      const deductData = await deductRes.json().catch(()=>({ success:false, msg:'Deduct parse error' }));
+      if(!deductRes.ok || !deductData.success){
+        throw new Error(deductData.msg || 'Deduction failed');
+      }
+    } else {
+      // if no API_BASE configured, skip deduct step
+      setMessage('Skipping deduct step (API_BASE not set)', false);
+    }
+
+    // join endpoint
+    setMessage('⏳ Joining match...', false);
+    // call joins route (wallet/joins under API_BASE)
+    const joinsRes = await fetch(`${API_BASE}/joins`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {}) },
+      body: JSON.stringify(payload)
+    });
+    const joinData = await joinsRes.json().catch(()=>({ success:false, msg:'Join parse error' }));
+    if(!joinsRes.ok || !joinData.success){
+      throw new Error(joinData.msg || 'Failed to join');
+    }
+
+    // success
+    setMessage(`🎉 Joined — assigned to ${joinData.assignedTeam || (joinData.match && joinData.match.players && joinData.match.players.slice(-1)[0]?.team) || 'N/A'}`, false);
+
+    // optional UI updates: reset small fields or route to room
+    // e.g. window.location.href = `user-room.html?matchId=${joinData.match._id}&uid=${encodeURIComponent(uid)}`;
+  } catch(err){
+    console.error('join error', err);
+    setMessage('❌ ' + (err.message || 'Join failed'));
+  }
+}
+
+// initialization
+(function init(){
+  // default prize system title: none until selection
+  // set up game/mode options and UI state
+  updateGameOptions();
+  hide(prizeSystemSection);
+  // default: show selection left, allow clicking to open
+  // Note: when user clicks a mode we hide the left column via openMatchForm()
+})();
+
+/* Expose helper for left panel to set prize system from old buttons */
+function selectPrizeSystemFromLeft(ps){
+  selectPrizeSystem(ps);
+}
+
+// ensure UI functions are available to left buttons
+window.openMatchForm = openMatchForm;
+window.selectPrizeSystem = selectPrizeSystem;
+window.backToModes = backToModes;
+window.showHome = showHome;
+window.updateGameOptions = updateGameOptions;
+window.updateMapOptions = updateMapOptions;
+window.toggleGunSelection = toggleGunSelection;
+window.toggleCustomFee = toggleCustomFee;
+window.joinMatch = joinMatch;
+</script>
+</body>
+</html>

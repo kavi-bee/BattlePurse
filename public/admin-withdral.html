@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Withdrawal Panel</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #121212;
+      color: #fff;
+      padding: 20px;
+    }
+    h2 {
+      color: #00faff;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #1e1e1e;
+      box-shadow: 0 0 12px #00faff33;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #333;
+      text-align: left;
+    }
+    th {
+      background-color: #00faff22;
+      color: #00faff;
+    }
+    tr:hover {
+      background-color: #1a1a1a;
+    }
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .approve {
+      background-color: #00ff8c;
+      color: #000;
+    }
+    .reject {
+      background-color: #ff4c4c;
+      color: #000;
+    }
+    .status {
+      font-weight: bold;
+      text-transform: capitalize;
+    }
+    .pending { color: yellow; }
+    .approved { color: #00ff8c; }
+    .rejected { color: #ff4c4c; }
+    .filter {
+      margin-bottom: 15px;
+    }
+    .filter select {
+      padding: 8px 12px;
+      font-size: 14px;
+      background: #222;
+      color: #fff;
+      border: 1px solid #00faff55;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🏧 Withdrawal Requests</h2>
+
+  <div class="filter">
+    <label for="statusFilter">Filter by status: </label>
+    <select id="statusFilter" onchange="renderTable()">
+      <option value="all">All</option>
+      <option value="pending">Pending</option>
+      <option value="approved">Approved</option>
+      <option value="rejected">Rejected</option>
+    </select>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>User Phone</th>
+        <th>Amount</th>
+        <th>Method</th>
+        <th>Details</th>
+        <th>Date</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="withdrawalTable"></tbody>
+  </table>
+
+  <script>
+    const token = localStorage.getItem("token");
+    let withdrawals = [];
+
+    async function fetchWithdrawals() {
+      try {
+        const res = await fetch("http://localhost:5000/api/wallet/admin/pending-withdrawals", {
+          headers: { Authorization: "Bearer " + token }
+        });
+        const data = await res.json();
+        withdrawals = data || [];
+        renderTable();
+      } catch (err) {
+        alert("Failed to load withdrawals");
+        console.error(err);
+      }
+    }
+
+    async function updateStatus(id, status) {
+      const route = status === 'approved' ? 'approve-withdrawal' : 'reject-withdrawal';
+      try {
+        const res = await fetch(`http://localhost:5000/api/wallet/admin/${route}`, {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ txnId: id })
+        });
+        const result = await res.json();
+        alert(result.msg || `Withdrawal ${status}`);
+        fetchWithdrawals();
+      } catch (err) {
+        alert("Action failed");
+        console.error(err);
+      }
+    }
+
+    function renderTable() {
+      const statusFilter = document.getElementById("statusFilter").value;
+      const tbody = document.getElementById("withdrawalTable");
+      tbody.innerHTML = "";
+
+      withdrawals.forEach(req => {
+        if (statusFilter !== "all" && req.status !== statusFilter) return;
+
+        const row = document.createElement("tr");
+        let details = "";
+
+        if (req.method === "bank") {
+          details = `
+            Bank: ${req.bankName || "-"}<br>
+            AC: ${req.cardNumber || "-"}<br>
+            IFSC: ${req.ifsc || "-"}<br>
+            Name: ${req.accountHolder || "-"}
+          `;
+        } else {
+          details = `UPI ID: ${req.upiId || "-"}`;
+        }
+
+        row.innerHTML = `
+          <td>${req.userId?.phone || "-"}</td>
+          <td>₹${req.amount}</td>
+          <td>${req.method}</td>
+          <td>${details}</td>
+          <td>${new Date(req.createdAt || req.date).toLocaleString()}</td>
+          <td class="status ${req.status}">${req.status}</td>
+          <td>
+            ${req.status === "pending" ? `
+              <button class="btn approve" onclick="updateStatus('${req._id}', 'approved')">Approve</button>
+              <button class="btn reject" onclick="updateStatus('${req._id}', 'rejected')">Reject</button>
+            ` : "-"}
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    window.onload = fetchWithdrawals;
+  </script>
+
+</body>
+</html>

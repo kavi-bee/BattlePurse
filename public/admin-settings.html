@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — Payment Config</title>
+
+<style>
+  body {
+    background: #0d0d0d;
+    color: #fff;
+    font-family: "Poppins", sans-serif;
+    padding: 25px;
+    text-align: center;
+  }
+
+  h2 {
+    color: #00faff;
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: #1a1a1a;
+    padding: 25px;
+    border-radius: 12px;
+    max-width: 450px;
+    margin: auto;
+    box-shadow: 0 0 20px rgba(0,255,255,0.1);
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    margin-top: 15px;
+    background: #222;
+    color: #fff;
+    font-size: 16px;
+  }
+
+  .file-box {
+    background: #222;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 15px;
+    color: #ccc;
+    cursor: pointer;
+  }
+
+  .qr-preview {
+    margin-top: 20px;
+  }
+
+  .qr-preview img {
+    width: 200px;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,255,255,0.2);
+  }
+
+  .submit-btn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    background: #00faff;
+    border: none;
+    color: #000;
+    font-size: 18px;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  .old-info {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #aaa;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>Admin — Update QR & UPI</h2>
+
+<div class="card">
+
+  <div>
+    <label><strong>UPI ID</strong></label>
+    <input type="text" id="upiId" placeholder="Enter UPI ID (example: yourupi@upi)" />
+  </div>
+
+  <div class="file-box" onclick="document.getElementById('qrImage').click()">
+    Click to Upload New QR Image
+  </div>
+  <input type="file" id="qrImage" accept="image/*" style="display:none" />
+
+  <div class="qr-preview" id="qrPreviewBox" style="display:none;">
+    <p>New QR Preview:</p>
+    <img id="qrPreview" src="">
+  </div>
+
+  <button class="submit-btn" onclick="updateConfig()">Save Changes</button>
+
+  <div class="old-info" id="oldData">Loading current config...</div>
+
+</div>
+
+<script>
+const API = "http://localhost:5000/api/wallet/payment-config";
+
+// ------------------------------
+// LOAD PREVIOUS CONFIG
+// ------------------------------
+async function loadPrevious() {
+  try {
+    const res = await fetch(API);
+
+    const data = await res.json();
+
+    if (data.success && data.config) {
+      const cfg = data.config;
+
+      document.getElementById("upiId").value = cfg.upiId || "";
+
+      let html = "";
+
+      if (cfg.qrImage) {
+        html += `
+          <p>Current QR:</p>
+          <img src="http://localhost:5000/uploads/${cfg.qrImage}" width="180" style="border-radius:12px;">
+        `;
+      }
+
+      if (cfg.upiId) {
+        html += `<p>Current UPI: <strong>${cfg.upiId}</strong></p>`;
+      }
+
+      document.getElementById("oldData").innerHTML = html;
+    } else {
+      document.getElementById("oldData").innerHTML = "<p>No payment config found.</p>";
+    }
+  } catch (err) {
+    console.error(err);
+    document.getElementById("oldData").innerHTML = "<p>Error loading config.</p>";
+  }
+}
+
+loadPrevious();
+
+// ------------------------------
+// SHOW NEW QR PREVIEW
+// ------------------------------
+document.getElementById("qrImage").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const imgURL = URL.createObjectURL(file);
+    document.getElementById("qrPreview").src = imgURL;
+    document.getElementById("qrPreviewBox").style.display = "block";
+  }
+});
+
+// ------------------------------
+// UPDATE CONFIG
+// ------------------------------
+async function updateConfig() {
+  const upiId = document.getElementById("upiId").value.trim();
+  const qrFile = document.getElementById("qrImage").files[0];
+
+  if (!upiId && !qrFile) {
+    return alert("Enter UPI or select a QR image!");
+  }
+
+  const form = new FormData();
+  form.append("upiId", upiId);
+  if (qrFile) form.append("qrImage", qrFile);
+
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      body: form
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      alert("✔ Payment Config Updated Successfully!");
+      loadPrevious();
+      document.getElementById("qrImage").value = ""; // reset file input
+      document.getElementById("qrPreviewBox").style.display = "none";
+    } else {
+      alert("❌ Error updating config: " + (data.msg || "Unknown error"));
+    }
+  } catch (err) {
+    console.error(err);
+    alert("❌ Server error!");
+  }
+}
+</script>
+
+</body>
+</html>

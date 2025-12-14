@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Withdrawal</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(145deg, #0d0d0d, #1e1e1e);
+      color: #fff;
+      padding: 30px 20px;
+      text-align: center;
+    }
+    .container {
+      max-width: 450px;
+      margin: 30px auto;
+      padding: 20px;
+      background: #1c1c1c;
+      border-radius: 16px;
+      box-shadow: 0 0 15px #00faff88;
+    }
+    h2 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #00faff, #00c6ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: pulse 2s infinite alternate;
+    }
+    @keyframes pulse {
+      from { letter-spacing: 1px; transform: scale(1); }
+      to { letter-spacing: 2px; transform: scale(1.03); }
+    }
+    .wallet {
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      background: #121212;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px #00faff44;
+    }
+    .method-selector {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin: 30px 0 20px 0;
+    }
+    .method-btn {
+      padding: 12px 20px;
+      background: #1e1e1e;
+      border: 2px solid #00faffaa;
+      border-radius: 30px;
+      color: #00faff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 12px rgba(0,255,255,0.1);
+    }
+    .method-btn:hover {
+      background: #00faff;
+      color: #000;
+      transform: scale(1.05);
+    }
+    .method-btn.selected {
+      background: #00faff;
+      color: #000;
+      box-shadow: 0 0 16px rgba(0,255,255,0.6);
+    }
+    .form-group {
+      text-align: left;
+      margin: 20px 0;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: #121212;
+      color: #fff;
+      box-shadow: inset 0 0 5px #00faff55;
+      margin-bottom: 18px;
+      font-size: 16px;
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(90deg, #00faff, #00c6ff);
+      color: #000;
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 15px #00faff77;
+      transition: background 0.3s ease;
+    }
+    .submit-btn:hover {
+      background: #00c6d6;
+    }
+    .note {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>🏦 Withdrawal</h2>
+
+  <div class="wallet" id="walletBalance">Wallet Balance: ₹0</div>
+
+  <div class="method-selector">
+    <button class="method-btn selected" id="bankBtn" onclick="selectMethod('bank')">Bank Card</button>
+    <button class="method-btn" id="upiBtn" onclick="selectMethod('upi')">UPI</button>
+  </div>
+
+  <div class="form-group">
+    <label for="withdrawAmount">Withdrawal Amount (Min ₹500)</label>
+    <input type="number" id="withdrawAmount" placeholder="Enter Amount" min="500" />
+  </div>
+
+  <!-- Bank Card Details -->
+  <div id="bankForm">
+    <div class="form-group">
+      <label for="bankName">Bank Name</label>
+      <input type="text" id="bankName" placeholder="Enter Bank Name" />
+    </div>
+    <div class="form-group">
+      <label for="cardNumber">Card/Account Number</label>
+      <input type="text" id="cardNumber" placeholder="Enter Account Number" />
+    </div>
+    <div class="form-group">
+      <label for="ifsc">IFSC Code</label>
+      <input type="text" id="ifsc" placeholder="Enter IFSC Code" />
+    </div>
+    <div class="form-group">
+      <label for="accountHolder">Account Holder Name</label>
+      <input type="text" id="accountHolder" placeholder="Enter Account Holder Name" />
+    </div>
+  </div>
+
+  <!-- UPI Form -->
+  <div id="upiForm" style="display:none;">
+    <div class="form-group">
+      <label for="upiId">UPI ID</label>
+      <input type="text" id="upiId" placeholder="Enter UPI ID" />
+    </div>
+    
+  </div>
+
+  <button class="submit-btn" onclick="submitWithdrawal()">Submit Withdrawal</button>
+
+  <div class="note">* Withdrawal amount must be at least ₹500</div>
+</div>
+
+<script>
+  let selectedMethod = 'bank'; // Default
+
+  function selectMethod(method) {
+    selectedMethod = method;
+    if (method === 'bank') {
+      document.getElementById("bankForm").style.display = "block";
+      document.getElementById("upiForm").style.display = "none";
+      document.getElementById("bankBtn").classList.add("selected");
+      document.getElementById("upiBtn").classList.remove("selected");
+    } else {
+      document.getElementById("bankForm").style.display = "none";
+      document.getElementById("upiForm").style.display = "block";
+      document.getElementById("upiBtn").classList.add("selected");
+      document.getElementById("bankBtn").classList.remove("selected");
+    }
+  }
+
+  async function submitWithdrawal() {
+    const token = localStorage.getItem("token");
+    if (!token) return alert("Login required");
+
+    const amount = Number(document.getElementById("withdrawAmount").value);
+    if (!amount || amount < 500) {
+      return alert("Minimum withdrawal amount is ₹500");
+    }
+
+    let body = {
+      amount,
+      method: selectedMethod
+    };
+
+    if (selectedMethod === 'bank') {
+      body.bankName = document.getElementById("bankName").value.trim();
+      body.accountNumber = document.getElementById("cardNumber").value.trim();
+      body.ifsc = document.getElementById("ifsc").value.trim();
+      body.accountHolder = document.getElementById("accountHolder").value.trim();
+    } else {
+      body.upiId = document.getElementById("upiId").value.trim();
+    }
+
+    try {
+      const res = await fetch("http://localhost:5000/api/wallet/request-withdrawal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token
+        },
+        body: JSON.stringify(body)
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        alert("✅ " + result.msg);
+        location.reload();
+      } else {
+        alert("❌ " + (result.msg || "Something went wrong"));
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      alert("❌ Error submitting withdrawal");
+    }
+  }
+
+  async function loadWalletBalance() {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const res = await fetch("http://localhost:5000/api/wallet/balance", {
+        headers: {
+          Authorization: "Bearer " + token
+        }
+      });
+      const data = await res.json();
+      document.getElementById("walletBalance").innerText = "Wallet Balance: ₹" + (data.balance || 0);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  window.onload = loadWalletBalance;
+</script>
+
+</body>
+</html>

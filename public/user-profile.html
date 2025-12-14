@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>User Profile - Admin View</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #121212;
+      color: #fff;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #00faff;
+    }
+    .profile-box {
+      background-color: #1e1e1e;
+      padding: 20px;
+      border-radius: 12px;
+      max-width: 500px;
+      margin: 30px auto;
+      box-shadow: 0 0 10px #00faff33;
+    }
+    .profile-box p {
+      margin: 12px 0;
+      font-size: 16px;
+    }
+    .label {
+      color: #00faff;
+      font-weight: bold;
+    }
+    .back-btn {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      background: #00faff;
+      color: #000;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      width: fit-content;
+    }
+  </style>
+</head>
+<body>
+
+<h1>👤 User Profile</h1>
+
+<div class="profile-box" id="profile">
+  <p>Loading profile...</p>
+</div>
+
+<a class="back-btn" href="admin-users.html">⬅ Back to Users</a>
+
+<script>
+  const token = localStorage.getItem("token");
+
+  async function loadUserProfile() {
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get("userId");
+    if (!userId) return alert("No user ID found in URL");
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/wallet/admin/user/${userId}`, {
+        headers: {
+          Authorization: "Bearer " + token
+        }
+      });
+      const data = await res.json();
+      if (!data.user) return alert("User not found");
+
+      const user = data.user;
+      const balance = data.balance || 0;
+
+      document.getElementById("profile").innerHTML = `
+        <p><span class="label">Phone:</span> ${user.phone}</p>
+        <p><span class="label">Role:</span> ${user.isAdmin ? 'Admin' : 'User'}</p>
+        <p><span class="label">Status:</span> ${user.banned ? 'Banned' : 'Active'}</p>
+        <p><span class="label">Wallet Balance:</span> ₹${balance}</p>
+        ${user.gameUIDs ? Object.entries(user.gameUIDs).map(([game, uid]) => 
+          `<p><span class="label">${game} UID:</span> ${uid}</p>`
+        ).join('') : ''}
+      `;
+    } catch (err) {
+      console.error("Failed to load profile", err);
+      alert("❌ Error loading user profile");
+    }
+  }
+
+  window.onload = loadUserProfile;
+</script>
+
+</body>
+</html>

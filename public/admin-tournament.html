@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin | Tournament Players & Management</title>
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      padding: 20px;
+      text-align: center;
+    }
+    h1, h2, h3 { color: #00faff; text-shadow: 0 0 10px #00faff; }
+    table {
+      width: 95%;
+      margin: 20px auto;
+      border-collapse: collapse;
+      border: 1px solid #00faff44;
+      background: #111;
+      box-shadow: 0 0 15px #00faff33;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #00faff22;
+      text-align: left;
+    }
+    th {
+      background: #00faff33;
+      color: #00faff;
+      text-transform: uppercase;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+    tr:hover { background: #00faff11; transition: 0.3s; }
+    .paid { color: #00ff6a; font-weight: bold; }
+    .unpaid { color: #ff004c; font-weight: bold; }
+    .container { margin-top: 20px; }
+    .back-btn {
+      display: inline-block;
+      background: #00faff;
+      color: #000;
+      padding: 10px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      margin-bottom: 20px;
+      transition: 0.3s;
+    }
+    .back-btn:hover { background: #00bfa5; }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #111;
+      border-radius: 10px;
+      text-align: left;
+    }
+    input, select, textarea { width: 100%; padding: 8px; margin-top: 5px; border-radius: 5px; border: none; }
+    button { margin-top: 10px; padding: 10px; background: #00faff; color: #000; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #00bfa5; }
+    img { max-width: 200px; border-radius: 5px; margin-top: 5px; }
+    /* Results Cards */
+    .result-card { border:1px solid #444; padding:10px; margin:10px 0; border-radius:8px; background:#111; }
+    .result-card img { max-width:100%; border-radius:5px; margin-top:5px; }
+    .result-card select, .result-card button { margin-top:10px; padding:8px 12px; border-radius:5px; border:none; cursor:pointer; }
+    .result-card button { background:#00c853; color:#fff; }
+    .result-card button:hover { background:#009624; }
+    .result-card select { background:#222; color:#fff; }
+  </style>
+</head>
+<body>
+
+<h1>🏆 Tournament Player List & Admin Panel</h1>
+<a href="admin.html" class="back-btn">← Back to Dashboard</a>
+
+<!-- Tournament Info -->
+<div id="tournamentInfo"></div>
+
+<!-- Player Table -->
+<div class="container">
+  <table id="playerTable">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Player Name</th>
+        <th>Mobile</th>
+        <th>Game UIDs</th>
+        <th>Wallet</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="playerBody">
+      <tr><td colspan="6">Loading players...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Create Tournament -->
+<div class="section">
+  <h3>Create Tournament</h3>
+  <form id="createForm" enctype="multipart/form-data">
+    <label>Name</label>
+    <input type="text" name="name" required>
+    <label>Game</label>
+    <input type="text" name="game" required>
+    <label>Mode</label>
+    <input type="text" name="mode" required>
+    <label>Date</label>
+    <input type="date" name="date" required>
+    <label>Time</label>
+    <input type="time" name="time" required>
+    <label>Entry Fee</label>
+    <input type="number" name="entryFee" required>
+    <label>Prize Pool</label>
+    <input type="number" name="prizePool" required>
+    <label>Max Players</label>
+    <input type="number" name="maxPlayers" required>
+    <label>Description</label>
+    <textarea name="description"></textarea>
+    <label>Upload Poster</label>
+    <input type="file" name="poster" accept="image/*" required>
+    <button type="submit">Create Tournament</button>
+  </form>
+</div>
+
+<!-- Upload Room Info -->
+<div class="section">
+  <h3>Upload Room ID & Password</h3>
+  <form id="roomForm">
+    <label>Select Tournament</label>
+    <select id="roomTournamentSelect" name="tournamentId" required></select>
+    <label>Room ID</label>
+    <input type="text" name="roomId" required>
+    <label>Room Password</label>
+    <input type="text" name="roomPassword" required>
+    <button type="submit">Upload Room Info</button>
+  </form>
+</div>
+
+<!-- Review Player Results -->
+<div class="section">
+  <h3>Admin: Tournament Results</h3>
+  <label>Select Tournament</label>
+  <select id="resultTournamentSelect" onchange="loadResults(this.value)"></select>
+  <div id="results">No results yet.</div>
+</div>
+
+<!-- Tournament List -->
+<div class="section">
+  <h3>All Tournaments</h3>
+  <div id="tournamentList"></div>
+</div>
+
+<!-- Promo Management -->
+ <div class="section">
+  <h3>Promo Management</h3>
+  <form id="promoForm" enctype="multipart/form-data">
+    <input type="text" id="promoTitle" name="title" placeholder="Promo Title" required><br><br>
+    <input type="file" id="promoImages" name="images" multiple accept="image/*" required><br><br>
+    <button type="submit">Add Promo</button>
+  </form>
+  <h4>All Promos</h4>
+  <div id="promoList"></div>
+</div>
+
+<script>
+const token = localStorage.getItem("token") || "YOUR_ADMIN_TOKEN_HERE";
+const params = new URLSearchParams(window.location.search);
+const tournamentId = params.get("id");
+
+const API_URL = `http://localhost:5000/api/wallet/tournaments`;
+const RESULT_URL = `http://localhost:5000/api/wallet/results`;
+const GAME_URL = `http://localhost:5000/api/wallet`;
+const PROMO_URL = `http://localhost:5000/api/wallet/promos`;
+const UPLOADS_BASE = "http://localhost:5000/uploads";
+
+let assignedPositions = new Set();
+
+/* ---------------- Load Players ---------------- */
+
+
+async function loadPlayers() {
+  if (!tournamentId) return;
+  try {
+    const res = await fetch(`${API_URL}/${tournamentId}/players`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (!res.ok) return alert(data.msg || "Failed to load players");
+
+    document.getElementById("tournamentInfo").innerHTML = `
+      <h2>${data.tournamentName}</h2>
+      <p>🎮 ${data.game} | Mode: <strong>${data.mode}</strong></p>
+      <p>Total Players: <strong>${data.totalPlayers}</strong></p>
+    `;
+
+    const tbody = document.getElementById("playerBody");
+    tbody.innerHTML = data.players.length
+      ? data.players.map((p, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${p.name}</td>
+          <td>${p.phone}</td>
+          <td>${(p.gameUIDs && p.gameUIDs.length ? p.gameUIDs.join(", ") : "—")}</td>
+          <td>₹${p.wallet}</td>
+          <td class="${p.paid ? "paid" : "unpaid"}">${p.paid ? "Paid" : "Unpaid"}</td>
+        </tr>
+      `).join("")
+      : `<tr><td colspan="6" style="text-align:center;">No players joined yet.</td></tr>`;
+  } catch (err) {
+    console.error(err);
+    alert("Error loading players");
+  }
+}
+
+/* ---------------- Create Tournament ---------------- */
+/* ---------------- Games ---------------- */
+async function loadGames() {
+  try {
+    const res = await fetch(GAME_URL, { headers: { Authorization: `Bearer ${token}` } });
+    const games = await res.json();
+    document.getElementById("gameSelect").innerHTML =
+      games.map(g => `<option value="${g._id}">${g.name}</option>`).join('');
+  } catch (err) { console.error("Failed to load games", err); }
+}
+
+/* ---------------- Tournaments ---------------- */
+async function loadTournaments() {
+  try {
+    const res = await fetch(API_URL, { headers: { Authorization: `Bearer ${token}` } });
+    const tournaments = await res.json();
+
+    const container = document.getElementById('tournamentList');
+    const roomSelect = document.getElementById('roomTournamentSelect');
+    const resultSelect = document.getElementById('resultTournamentSelect');
+
+    container.innerHTML = '';
+    roomSelect.innerHTML = '';
+    resultSelect.innerHTML = '';
+
+    if (!tournaments.length) {
+      container.innerHTML = "<p>No tournaments found.</p>";
+      return;
+    }
+
+    tournaments.forEach(t => {
+      container.innerHTML += `
+        <div style="border:1px solid #ccc; padding:10px; margin:10px;">
+          ${t.poster ? `<img src="${UPLOADS_BASE}/${t.poster}" alt="Poster" width="150">` : ""}
+          <strong>${t.name}</strong><br>
+          Game: ${t.gameId?.name || 'N/A'} <br>
+          Entry Fee: ₹${t.entryFee}<br>
+          Prize Pool: ₹${t.prizePool}<br>
+          Max Players: ${t.maxPlayers}<br>
+          Date: ${new Date(t.date).toLocaleDateString()}<br>
+          Time: ${t.time}<br>
+          <button onclick="deleteTournament('${t._id}')">Delete</button>
+        </div>
+      `;
+      roomSelect.innerHTML += `<option value="${t._id}">${t.name}</option>`;
+      resultSelect.innerHTML += `<option value="${t._id}">${t.name}</option>`;
+    });
+  } catch (err) { console.error("Error loading tournaments", err); }
+}
+
+async function deleteTournament(id) {
+  if (confirm("Delete this tournament?")) {
+    const res = await fetch(`${API_URL}/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    alert(data.msg || "Deleted");
+    loadTournaments();
+  }
+}
+
+document.getElementById("createForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      alert("Tournament created successfully");
+      e.target.reset();
+      loadTournaments();
+    } else {
+      alert(data.msg || "Failed to create tournament");
+    }
+  } catch (err) { console.error(err); alert("Error submitting tournament"); }
+});
+/* ---------------- Load Results ---------------- */
+async function loadResults(tournamentId){
+  if(!tournamentId) return;
+  try{
+    const res = await fetch(`${RESULT_URL}/${tournamentId}`, { headers:{ Authorization:`Bearer ${token}` } });
+    const data = await res.json();
+    const resultsDiv = document.getElementById("results");
+
+    if(!res.ok){ resultsDiv.innerHTML=`<p>Error: ${data.msg || "Failed to load results."}</p>`; return; }
+    if(!data.results || !data.results.length){ resultsDiv.innerHTML="<p>No screenshots uploaded yet.</p>"; return; }
+
+    resultsDiv.innerHTML = data.results.map(r=>{
+      const options = [1,2,3].map(pos=>`<option value="${pos}" ${assignedPositions.has(pos)?"disabled":""}>${pos} ${pos===1?"🥇":pos===2?"🥈":"🥉"}</option>`).join("");
+      return `
+        <div class="result-card" id="player-${r.user?.id}">
+          <p><strong>Player:</strong> ${r.user?.name || "Unknown"}</p>
+          <p><strong>Phone:</strong> ${r.user?.phone || "N/A"}</p>
+          <p><strong>Email:</strong> ${r.user?.email || "N/A"}</p>
+          <p><strong>Uploaded At:</strong> ${new Date(r.uploadedAt).toLocaleString()}</p>
+          ${r.screenshot ? `<img src="${r.screenshot}"/>`:"<p>No screenshot</p>"}
+          <select id="pos-${r.user?.id}"><option value="">Select Rank</option>${options}</select>
+          <button onclick="declareWinner('${tournamentId}','${r.user?.id}')">Declare Winner</button>
+        </div>
+      `;
+    }).join("");
+  }catch(err){ console.error(err); document.getElementById("results").innerHTML="<p>Failed to load results.</p>"; }
+}
+
+async function declareWinner(tournamentId,userId){
+  const posSelect = document.getElementById(`pos-${userId}`);
+  const position = parseInt(posSelect.value);
+  if(!position){ alert("Select a rank before declaring."); return; }
+  if(assignedPositions.has(position)){ alert("This rank has already been assigned."); return; }
+
+  try{
+    const res = await fetch(`${GAME_URL}/declareWinner/${tournamentId}`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` },
+      body:JSON.stringify({ winners:[{userId, position}] })
+    });
+    const data = await res.json();
+    alert(data.msg || "Winner declared");
+    assignedPositions.add(position);
+    posSelect.disabled = true;
+    loadResults(tournamentId);
+  }catch(err){ console.error(err); alert("Failed to declare winner."); }
+}
+
+/* ---------------- Room Info ---------------- */
+document.getElementById("roomForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const id = formData.get("tournamentId");
+  const payload = { roomId: formData.get("roomId"), roomPassword: formData.get("roomPassword") };
+  try {
+    const res = await fetch(`${API_URL}/${id}/room`, { method:"PUT", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${token}` }, body:JSON.stringify(payload) });
+    const data = await res.json();
+    alert(data.msg || "Room info uploaded");
+  } catch(err){ console.error(err); alert("Failed to upload room info"); }
+});
+
+
+
+/* ---------------- Other features like promos, rooms, create tournament ---------------- */
+/* ...keep your existing promoForm, roomForm, createForm code here... */
+/* ---------------- Promos ---------------- */
+document.getElementById("promoForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const formData = new FormData();
+  formData.append("title", document.getElementById("promoTitle").value);
+  const files = document.getElementById("promoImages").files;
+  for(let f of files) formData.append("images", f);
+  try{
+    const res = await fetch(PROMO_URL, { method:"POST", headers:{ Authorization:`Bearer ${token}` }, body:formData });
+    const data = await res.json();
+    alert(res.ok ? "Promo added!" : data.error || "Failed");
+    loadPromos();
+  }catch(err){ console.error(err); alert("Error adding promo"); }
+});
+
+async function loadPromos(){
+  try{
+    const res = await fetch(PROMO_URL, { headers:{ Authorization:`Bearer ${token}` }});
+    const promos = await res.json();
+    const promoList = document.getElementById("promoList");
+    promoList.innerHTML = promos.length
+      ? promos.map(p=>`<div style="border:1px solid #444; padding:10px; margin:10px;">
+          <strong>${p.title}</strong><br>
+          ${p.images.map(img=>`<img src="${UPLOADS_BASE}/${img}" style="max-width:150px;margin:5px;">`).join('')}
+          <br><button onclick="deletePromo('${p._id}')">Delete</button>
+        </div>`).join('')
+      : "<p>No promos available.</p>";
+  }catch(err){ console.error(err); }
+}
+
+async function deletePromo(id){
+  if(!confirm("Delete this promo?")) return;
+  const res = await fetch(`${PROMO_URL}/${id}`, { method:"DELETE", headers:{ Authorization:`Bearer ${token}` }});
+  const data = await res.json();
+  alert(data.msg || "Deleted");
+  loadPromos();
+}
+/* ---------------- Init ---------------- */
+loadPlayers();
+loadTournaments();
+loadPromos(); // make sure this function exists from your previous code
+
+</script>
+</body>
+</html>

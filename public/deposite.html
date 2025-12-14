@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Deposit</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #111;
+      color: #fff;
+      padding: 30px;
+      text-align: center;
+    }
+
+    h2 {
+      color: #00faff;
+      font-size: 28px;
+    }
+
+    .plans, .custom-amount {
+      margin-top: 25px;
+    }
+
+    .plan-btn {
+      padding: 12px 20px;
+      margin: 5px;
+      border: 2px solid #00faff;
+      border-radius: 25px;
+      background: none;
+      color: #00faff;
+      cursor: pointer;
+    }
+
+    .plan-btn.selected {
+      background: #00faff;
+      color: #000;
+    }
+
+    .custom-amount input {
+      padding: 10px;
+      width: 200px;
+      border-radius: 8px;
+      border: 1px solid #00faff88;
+      background: #222;
+      color: #fff;
+      margin-top: 10px;
+    }
+
+    .pay-btn {
+      margin-top: 30px;
+      padding: 14px 35px;
+      font-size: 16px;
+      border: none;
+      border-radius: 30px;
+      background: linear-gradient(90deg, #00faff, #00c6ff);
+      color: #000;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>💰 Deposit to Wallet</h2>
+
+  <div class="plans">
+    <button class="plan-btn" onclick="selectAmount(300)">₹300</button>
+    <button class="plan-btn" onclick="selectAmount(500)">₹500</button>
+    <button class="plan-btn" onclick="selectAmount(1000)">₹1000</button>
+    <button class="plan-btn" onclick="selectAmount(2000)">₹2000</button>
+  </div>
+
+  <div class="custom-amount">
+    <p>Or enter custom amount:</p>
+    <input type="number" id="customAmount" placeholder="Min ₹300" />
+  </div>
+
+  <button class="pay-btn" onclick="proceedToPayment()">Proceed to Payment</button>
+
+  <script>
+    let selectedAmount = 0;
+    const API_URL = "http://localhost:5000/api/wallet"; // change if needed
+    const token = localStorage.getItem("token");
+
+    function selectAmount(amount) {
+      selectedAmount = amount;
+      document.querySelectorAll('.plan-btn').forEach(btn => btn.classList.remove('selected'));
+      event.target.classList.add('selected');
+      document.getElementById("customAmount").value = "";
+    }
+
+    async function proceedToPayment() {
+  const customInput = document.getElementById("customAmount").value;
+  const custom = parseInt(customInput);
+  const isUsingCustom = customInput !== "";
+
+  if (isUsingCustom) {
+    if (isNaN(custom) || custom < 300) {
+      alert("❗ Custom amount must be ₹300 or more.");
+      return;
+    }
+    selectedAmount = custom;
+  }
+
+  if (!selectedAmount || selectedAmount < 300) {
+    alert("❗ Please select a valid plan (₹300 or above) or enter a valid custom amount.");
+    return;
+  }
+
+  if (!token) {
+    alert("❗ Please login first.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/deposit-request`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ amount: selectedAmount })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      window.location.href = `payment.html?txnId=${data.txnId}&amount=${selectedAmount}`;
+    } else {
+      alert(data.msg || "❌ Deposit failed");
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("❌ Server error. Please try again.");
+  }
+}
+
+  </script>
+
+</body>
+</html>

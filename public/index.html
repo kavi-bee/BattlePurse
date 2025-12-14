@@ -1,0 +1,193 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Splash Screen</title>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+    body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(135deg, #020202, #111111, #0e0e0e);
+        animation: bgMove 7s infinite alternate ease-in-out;
+    }
+
+    /* Animated Background Gradient */
+    @keyframes bgMove {
+        0% { background-position: 0 0; }
+        100% { background-position: 200% 200%; }
+    }
+
+    /* Floating Particles */
+    .particles span {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #00eaff;
+        border-radius: 50%;
+        opacity: 0.15;
+        animation: floatUp 6s linear infinite;
+    }
+
+    @keyframes floatUp {
+        0% { transform: translateY(50vh) scale(0.3); }
+        100% { transform: translateY(-60vh) scale(1); }
+    }
+
+    /* Particles Variation */
+    .particles span:nth-child(odd) {
+        animation-duration: 7s;
+        background: #14ffec;
+    }
+
+    .particles span:nth-child(even) {
+        animation-duration: 5s;
+        background: #00b7ff;
+    }
+
+    /* Logo */
+    .logo-box {
+        position: relative;
+        opacity: 0;
+        animation: fadeInLogo 1.3s forwards ease-out;
+    }
+
+    @keyframes fadeInLogo {
+        to { opacity: 1; }
+    }
+
+    .logo {
+        width: 140px;
+        height: 140px;
+        border-radius: 28px;
+        box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+    }
+
+    /* Shine Effect */
+    .shine {
+        position: absolute;
+        top: 0;
+        left: -180px;
+        width: 180px;
+        height: 100%;
+        background: linear-gradient(120deg, transparent, rgba(255,255,255,0.5), transparent);
+        transform: skewX(-20deg);
+        animation: shineMove 2s infinite;
+    }
+
+    @keyframes shineMove {
+        0% { left: -180px; }
+        100% { left: 200px; }
+    }
+
+    /* App Name */
+    .app-name {
+        margin-top: 22px;
+        font-size: 32px;
+        font-weight: 700;
+        color: #00eaff;
+        letter-spacing: 2px;
+        opacity: 0;
+        animation: slideUp 1s forwards 1s;
+        text-shadow: 0 0 18px rgba(0,255,255,0.6);
+    }
+
+    @keyframes slideUp {
+        to { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; transform: translateY(20px); }
+    }
+
+    /* Glowing Text Pulse */
+    .app-name {
+        animation: slideUp 1s forwards 1s, glowPulse 2s infinite ease-in-out 2.2s;
+    }
+
+    @keyframes glowPulse {
+        0%, 100% { text-shadow: 0 0 12px #00eaff; }
+        50% { text-shadow: 0 0 22px #00eaff; }
+    }
+
+    /* Liquid Loading Bar Container */
+    .loading {
+        width: 200px;
+        height: 6px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 50px;
+        margin-top: 40px;
+        overflow: hidden;
+        opacity: 0;
+        animation: fadeInLoad 1s forwards 1.7s;
+        position: relative;
+    }
+
+    @keyframes fadeInLoad {
+        to { opacity: 1; }
+    }
+
+    /* Liquid Bar */
+    .liquid {
+        width: 70px;
+        height: 100%;
+        background: linear-gradient(90deg, #00eaff, #14ffec, #00b7ff);
+        position: absolute;
+        left: -80px;
+        border-radius: 50px;
+        animation: slideLiquid 1.5s infinite ease-in-out;
+    }
+
+    @keyframes slideLiquid {
+        0% { left: -80px; }
+        100% { left: 210px; }
+    }
+</style>
+</head>
+
+<body>
+
+    <!-- Floating Particles -->
+    <div class="particles">
+        <span style="left: 10%; animation-delay: 0s;"></span>
+        <span style="left: 20%; animation-delay: 1s;"></span>
+        <span style="left: 35%; animation-delay: 2s;"></span>
+        <span style="left: 50%; animation-delay: 0.5s;"></span>
+        <span style="left: 65%; animation-delay: 1.5s;"></span>
+        <span style="left: 80%; animation-delay: 0.7s;"></span>
+        <span style="left: 90%; animation-delay: 1.2s;"></span>
+    </div>
+
+    <!-- Logo with Shine -->
+    <div class="logo-box">
+        <img src="file_00000000c938722f8d26b428d0c8069c.png" class="logo" alt="App Logo">
+        <div class="shine"></div>
+    </div>
+
+    <!-- App Name -->
+    <div class="app-name">BATTLEPURSE</div>
+
+    <!-- Ultra Premium Liquid Loading Bar -->
+    <div class="loading">
+        <div class="liquid"></div>
+    </div>
+
+<script>
+    // Redirect after splash screen
+    setTimeout(() => {
+        window.location.href = "auth.html"; 
+    }, 2800);
+</script>
+
+</body>
+</html>

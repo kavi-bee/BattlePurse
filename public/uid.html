@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Join Tournament</title>
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      text-align: center;
+      padding: 30px;
+    }
+    h2 { color: #00faff; }
+    .inputBox { margin: 10px 0; }
+    input {
+      width: 80%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      text-align: center;
+      font-size: 16px;
+      background: #1c1c1c;
+      color: #fff;
+    }
+    button {
+      background: #00c853;
+      border: none;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: 0.2s;
+    }
+    button:hover { background: #009624; }
+    .info { margin: 10px 0; color: #bbb; }
+  </style>
+</head>
+<body>
+  <h2 id="tName">Loading tournament...</h2>
+  <p id="tMode"></p>
+  <div id="uidContainer"></div>
+  <button onclick="submitJoin()">Join Tournament</button>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams(window.location.search);
+    const tournamentId = params.get('id');
+
+    const TOURNAMENT_URL = `http://localhost:5000/api/wallet/tournaments/${tournamentId}`;
+    const JOIN_URL = `http://localhost:5000/api/wallet/join/${tournamentId}`;
+
+    let mode = 'solo';
+    let requiredUids = 1;
+
+    // Load tournament details
+    async function loadTournament() {
+      try {
+        const res = await fetch(TOURNAMENT_URL, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const t = await res.json();
+
+        if (!res.ok) {
+          alert(t.msg || 'Failed to load tournament');
+          return;
+        }
+
+        document.getElementById('tName').innerText = t.name;
+        document.getElementById('tMode').innerText = `Mode: ${t.mode}`;
+        mode = t.mode;
+
+        // Determine number of required UIDs
+        if (mode === 'duo') requiredUids = 2;
+        else if (mode === 'squad') requiredUids = 4;
+        else requiredUids = 1;
+
+        const container = document.getElementById('uidContainer');
+        container.innerHTML = '';
+
+        for (let i = 1; i <= requiredUids; i++) {
+          const div = document.createElement('div');
+          div.className = 'inputBox';
+          div.innerHTML = `<input type="text" id="uid${i}" placeholder="Enter Player ${i} UID" required />`;
+          container.appendChild(div);
+        }
+
+      } catch (err) {
+        console.error(err);
+        alert('Error loading tournament details');
+      }
+    }
+
+    // Submit join request
+    async function submitJoin() {
+      const uids = [];
+      document.querySelectorAll('input[id^="uid"]').forEach(inp => {
+        if (inp.value.trim() !== '') uids.push(inp.value.trim());
+      });
+
+      if (uids.length !== requiredUids) {
+        alert(`Please enter exactly ${requiredUids} UID(s) for ${mode} mode`);
+        return;
+      }
+
+      try {
+        const res = await fetch(JOIN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ uids })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert(data.msg || 'Successfully joined!');
+          window.location.href = `./joined.html?id=${tournamentId}`;
+        } else {
+          alert(data.msg || 'Join failed');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error joining tournament');
+      }
+    }
+
+    loadTournament();
+  </script>
+</body>
+</html>

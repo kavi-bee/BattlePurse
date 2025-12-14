@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Player Room - Esports Match Hub</title>
+<style>
+  body{background:#090909;color:#fff;font-family:Poppins,system-ui;padding:20px;text-align:center}
+  .card{background:#151515;padding:20px;border-radius:12px;max-width:420px;margin:30px auto}
+  input{width:100%;padding:10px;border-radius:8px;border:none;margin-top:12px;background:#0b0b0b;color:#fff}
+  button{margin:10px 6px;background:#00d5ff;border:none;padding:10px 18px;border-radius:10px;cursor:pointer}
+  .refresh{background:#6366f1}
+  table{width:100%;margin-top:18px;border-collapse:collapse;background:#202020;border-radius:8px;overflow:hidden}
+  th,td{padding:10px;border-bottom:1px solid #333;text-align:left}
+  th{background:#111;color:#00eaff}
+  .muted{color:#9aa;font-size:13px}
+  .note{margin-top:8px;color:#cbd5e1}
+</style>
+</head>
+<body>
+
+<h1 style="margin-top:10px">Player Match Room</h1>
+
+<div id="room-box" class="card">Loading...</div>
+
+<input id="killsInput" type="number" placeholder="Enter Kills" style="display:none" />
+
+<div style="max-width:420px;margin:8px auto;text-align:center">
+  <button class="refresh" onclick="loadRoom()">🔄 Refresh</button>
+  <button onclick="confirmJoin()">✅ Confirm Join</button>
+</div>
+
+<div id="teamTable"></div>
+
+<script>
+const matchId = new URLSearchParams(window.location.search).get("matchId");
+let currentPrizeSystem = null;
+let currentGame = "";
+
+const NON_PRIZE_GAMES = ["Ludo", "Carrom", "8 Ball Pool", "Cricket"];
+
+function normalizePrize(raw){
+  if(!raw) return null;
+  const r = String(raw).trim().toLowerCase();
+  if(r.includes("kill")) return "kill_based";
+  if(r.includes("team")) return "team_equal";
+  return null;
+}
+
+function prizeLabel(code){
+  return code === "kill_based" ? "Kill Based" :
+         code === "team_equal" ? "Team Equal" : "";
+}
+
+async function loadRoom(){
+  const box = document.getElementById("room-box");
+  const teamTable = document.getElementById("teamTable");
+  const killsInput = document.getElementById("killsInput");
+
+  box.innerHTML = "Loading...";
+  teamTable.innerHTML = "";
+
+  try{
+    const roomRes = await fetch(`http://localhost:5000/api/wallet/quickmatch/room/${matchId}`).then(r=>r.json());
+    const pairsRes = await fetch(`http://localhost:5000/api/wallet/pairs/${matchId}`).then(r=>r.json());
+
+    if(!roomRes.success){
+      box.innerHTML = "<h3>Room Not Published Yet</h3><p class='note'>⏳ Please wait for admin.</p>";
+      killsInput.style.display="none";
+      return;
+    }
+
+    currentGame = pairsRes.game || roomRes.room.game;
+
+    currentPrizeSystem = normalizePrize(
+      pairsRes.prizeSystem || roomRes.room.prizeSystem
+    );
+
+    if (NON_PRIZE_GAMES.includes(currentGame)) {
+      currentPrizeSystem = null;
+      killsInput.style.display = "none";
+    } else {
+      killsInput.style.display = currentPrizeSystem === "kill_based" ? "block" : "none";
+    }
+
+    const r = roomRes.room;
+
+    let prizeHTML = "";
+    if (!NON_PRIZE_GAMES.includes(currentGame) && currentPrizeSystem) {
+      prizeHTML = `<p><strong>Prize System:</strong> ${prizeLabel(currentPrizeSystem)}</p>`;
+    }
+
+    let roomHTML = `<h3>Room Published</h3>`;
+
+    if (currentGame === "Ludo") {
+      roomHTML += `<p><strong>Private Code:</strong> ${r.roomId}</p>`;
+    }
+    else if (currentGame === "Carrom") {
+      roomHTML += `<p><strong>Room Code:</strong> ${r.roomId}</p>`;
+    }
+    else if (currentGame === "8 Ball Pool" || currentGame === "Cricket") {
+      roomHTML += `
+        ${
+          r.message
+            ? `<p><strong>Note:</strong> ${r.message}</p>`
+            : `<p>No special note from admin.</p>`
+        }
+      `;
+    }
+    else {
+      roomHTML += `
+        <p><strong>Room ID:</strong> ${r.roomId}</p>
+        <p><strong>Password:</strong> ${r.roomPassword}</p>
+      `;
+    }
+
+    /* ❌ Start Time removed here */
+
+    roomHTML += prizeHTML;
+
+    if (currentGame !== "8 Ball Pool" && currentGame !== "Cricket") {
+      if (r.message) {
+        roomHTML += `<p><strong>Note:</strong> ${r.message}</p>`;
+      }
+    }
+
+    roomHTML += `
+      <button onclick="uploadResult()"
+      style="
+        margin-top:25px;
+        background:#28c76f;
+        padding:10px 20px;
+        border-radius:10px;
+        font-weight:600;
+        cursor:pointer;
+      ">
+        📤 Upload Result Screenshot
+      </button>
+    `;
+
+    box.innerHTML = roomHTML;
+
+    renderTeamTable(pairsRes.players || []);
+
+  }catch(err){
+    console.error(err);
+    box.innerHTML = "<h3>Error Loading Room</h3>";
+  }
+}
+
+
+
+function renderTeamTable(players){
+  const table = document.getElementById("teamTable");
+
+  if(!Array.isArray(players) || players.length === 0){
+    table.innerHTML = "<p class='muted'>No players joined yet</p>";
+    return;
+  }
+
+  let html = `<table>
+    <tr>
+      <th>UID</th>
+      <th>Name</th>
+      <th>Team</th>
+    </tr>
+  `;
+
+  const half = Math.ceil(players.length / 2);
+
+  players.forEach((p,i)=>{
+    const uid = p.uid || p.userId?._id || "-";
+    const name = p.name || p.userId?.name || "Unknown";
+
+    const team = p.team || (i < half ? "LION" : "TIGER");
+    const color = team === "LION" ? "#ffcc00" : "#00eaff";
+
+    // 🔗 Facebook link (player-specific)
+    const fbLink =
+  p.uid ||                // player already sent FB link as UID
+  p.facebook ||
+  p.facebookLink ||
+  p.userId?.uid ||
+  null;
+
+let uidDisplay = uid;
+
+// 🏏 Cricket → show clickable Facebook profile
+if (currentGame?.toLowerCase() === "cricket" && fbLink && fbLink.includes("facebook.com")) {
+  uidDisplay = `
+    <a 
+      href="${fbLink}" 
+      target="_blank"
+      rel="noopener"
+      style="color:#00d5ff;text-decoration:underline;font-weight:500"
+    >
+      Open Profile
+    </a>
+  `;
+}
+
+    html += `
+      <tr>
+        <td>${uidDisplay}</td>
+        <td>${name}</td>
+        <td style="color:${color}">${team}</td>
+      </tr>
+    `;
+  });
+
+  html += "</table>";
+  table.innerHTML = html;
+}
+
+
+
+
+
+
+async function uploadResult(){
+  const killsInput = document.getElementById("killsInput");
+  let kills = 0;
+
+  if(currentPrizeSystem === "kill_based"){
+    if(!killsInput.value) return alert("Enter kills first");
+    kills = Number(killsInput.value);
+  }
+
+  const fileInput = document.createElement("input");
+  fileInput.type="file";
+  fileInput.accept="image/*";
+
+  fileInput.onchange = async ()=>{
+    const file = fileInput.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async ()=>{
+      const token = localStorage.getItem("token");
+      if(!token) return alert("Login required");
+
+      await fetch("http://localhost:5000/api/wallet/upload-result",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+token },
+        body: JSON.stringify({ matchId, kills, screenshotUrl: reader.result })
+      }).then(r=>r.json()).then(d=> alert(d.msg));
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  fileInput.click();
+}
+
+function confirmJoin(){
+  alert("You confirmed your participation");
+}
+
+loadRoom();
+</script>
+
+</body>
+</html>

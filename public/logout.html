@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Logout</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #121212;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+    }
+
+    .container {
+      background: #1c1c1c;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 0 15px #00faff88;
+      max-width: 400px;
+    }
+
+    h1 {
+      color: #00faff;
+      margin-bottom: 15px;
+    }
+
+    p {
+      margin-bottom: 30px;
+      color: #ccc;
+    }
+
+    .button {
+      padding: 14px 30px;
+      font-size: 16px;
+      font-weight: 600;
+      background: #00faff;
+      color: #000;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .button:hover {
+      background: #00c8e6;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🚪 Logged Out</h1>
+  <p>You have been successfully logged out.</p>
+  <a href="auth.html" class="button">🔐 Login Again</a>
+</div>
+
+<script>
+  async function logoutUser() {
+    const token = localStorage.getItem("token");
+
+    try {
+      if (token) {
+        await fetch("http://localhost:5000/api/auth/logout", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token
+          }
+        });
+      }
+    } catch (err) {
+      console.log("Logout error:", err);
+    }
+
+    // Always clear token
+    localStorage.removeItem("token");
+
+    // Redirect after 1 second
+    setTimeout(() => {
+      window.location.href = "auth.html";
+    }, 1000);
+  }
+
+  // Auto logout when page loads
+  logoutUser();
+</script>
+
+</body>
+</html>

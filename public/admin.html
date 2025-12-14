@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #121212;
+      --sidebar: #1e1e1e;
+      --text: #ffffff;
+      --highlight: #00faff;
+      --card: #1c1c1c;
+    }
+
+    body.light {
+      --bg: #fafafa;
+      --sidebar: #ffffff;
+      --text: #000000;
+      --highlight: #007f88;
+      --card: #ffffff;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+      transition: 0.3s ease;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 230px;
+      background-color: var(--sidebar);
+      display: flex;
+      flex-direction: column;
+      padding: 20px 0;
+      border-right: 1px solid #333;
+      transition: 0.3s;
+      position: fixed;
+      left: 0;
+      top: 0;
+      height: 100%;
+      overflow-y: auto;
+      z-index: 20;
+    }
+
+    .sidebar.collapsed {
+      width: 70px;
+    }
+
+    .sidebar h2 {
+      text-align: center;
+      color: var(--highlight);
+      margin-bottom: 30px;
+      transition: 0.3s;
+      font-size: 20px;
+      padding: 0 10px;
+    }
+
+    .sidebar.collapsed h2 {
+      opacity: 0;
+      height: 0;
+    }
+
+    /* NAV LINKS */
+    .nav-link {
+      padding: 14px 20px;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: 0.3s;
+      border-radius: 6px;
+      margin: 4px 8px;
+      font-size: 15px;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      background-color: var(--highlight);
+      color: #000;
+      font-weight: 600;
+    }
+
+    .sidebar.collapsed .nav-text {
+      display: none;
+    }
+
+    /* TOP BAR */
+    .top-bar {
+      width: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px;
+      background: var(--sidebar);
+      border-bottom: 1px solid #333;
+    }
+
+    .menu-toggle,
+    .theme-toggle {
+      font-size: 26px;
+      color: var(--highlight);
+      cursor: pointer;
+    }
+
+    /* CONTENT */
+    .content {
+      flex: 1;
+      margin-left: 230px;
+      padding: 90px 25px 25px;
+      overflow-y: auto;
+      height: 100vh;
+      transition: 0.3s;
+    }
+
+    .sidebar.collapsed + .top-bar + .content {
+      margin-left: 70px;
+    }
+
+    .section {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* CARDS */
+    .card {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 12px var(--highlight);
+      margin-bottom: 20px;
+    }
+
+    /* MOBILE FIXES */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 230px;
+        left: -230px;
+      }
+
+      .sidebar.open {
+        left: 0;
+        box-shadow: 0 0 20px #000;
+      }
+
+      .content {
+        margin-left: 0 !important;
+        padding: 90px 15px 20px;
+      }
+    }
+  </style>
+
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <h2>🎮 Admin</h2>
+
+    <a class="nav-link active" onclick="switchSection('users')">
+      <i class="ri-user-3-fill"></i><span class="nav-text">User Management</span>
+    </a>
+
+    <a class="nav-link" onclick="switchSection('tournaments')">
+      <i class="ri-trophy-fill"></i><span class="nav-text">Tournaments</span>
+    </a>
+
+    <a class="nav-link" onclick="switchSection('routes')">
+      <i class="ri-route-fill"></i><span class="nav-text">Tournament Routes</span>
+    </a>
+
+    <a class="nav-link" onclick="switchSection('participants')">
+      <i class="ri-group-fill"></i><span class="nav-text">Participants</span>
+    </a>
+
+    <a class="nav-link" onclick="switchSection('matches')">
+      <i class="ri-gamepad-fill"></i><span class="nav-text">Matches</span>
+    </a>
+
+    <a class="nav-link" onclick="switchSection('matchess')">
+      <i class="ri-game-fill"></i><span class="nav-text">MATCHES Panel</span>
+    </a>
+
+
+    <a class="nav-link" onclick="switchSection('matchdetails')">
+  <i class="ri-file-list-3-fill"></i><span class="nav-text">Match Details</span>
+</a>
+
+
+
+    <a class="nav-link" onclick="switchSection('notifications')">
+      <i class="ri-notification-3-fill"></i><span class="nav-text">Notifications</span>
+    </a>
+
+    <a class="nav-link" onclick="switchSection('notificationss')">
+      <i class="ri-notification-fill"></i><span class="nav-text">Result Notes</span>
+    </a>
+
+    <a class="nav-link" onclick="switchSection('deposits')">
+      <i class="ri-bank-card-fill"></i><span class="nav-text">Deposits</span>
+    </a>
+
+    <a class="nav-link" onclick="switchSection('withdrawals')">
+      <i class="ri-money-rupee-circle-fill"></i><span class="nav-text">Withdrawals</span>
+    </a>
+
+    <a class="nav-link" onclick="switchSection('Settings')">
+      <i class="ri-settings-5-fill"></i><span class="nav-text">Settings</span>
+    </a>
+  </div>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <i id="menuToggle" class="ri-menu-fill menu-toggle"></i>
+    <span>Admin Panel</span>
+    <i id="themeToggle" class="ri-sun-fill theme-toggle"></i>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <div id="users" class="section active">
+      <h3>User Management</h3>
+      <div class="card">
+        👤 Manage Users<br>
+        <a href="admin-users.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+    <div id="tournaments" class="section">
+      <h3>Tournaments</h3>
+      <div class="card">
+        🏆 Create & manage tournaments<br>
+        <a href="admin-tournament.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+    <div id="routes" class="section">
+      <h3>Routes</h3>
+      <div class="card">
+        🛣 Tournament Control<br>
+        <a href="admin-winner.html" style="color:var(--highlight);">Declare Winners</a>
+      </div>
+    </div>
+
+    <div id="participants" class="section">
+      <h3>Participants</h3>
+      <div class="card">
+        🧑‍🤝‍🧑 View joins<br>
+        <a href="admin-tournamentjoinedplayes.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+    <div id="matches" class="section">
+      <h3>Matches</h3>
+      <div class="card">
+        🎮 Match status<br>
+        <a href="admin-matches.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+    <div id="matchess" class="section">
+      <h3>Match System</h3>
+      <div class="card">
+        🎮 Pairings<br>
+        <a href="admin-matchess.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+
+<div id="matchdetails" class="section">
+  <h3>Match Details</h3>
+  <div class="card">
+    📄 Complete Match Details<br>
+    <a href="admin-matchesss.html" style="color:var(--highlight);">Open</a>
+  </div>
+</div>
+
+
+    <div id="notifications" class="section">
+      <h3>Notifications</h3>
+      <div class="card">
+        🔔 Member notifications<br>
+        <a href="admin-match-result.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+    <div id="notificationss" class="section">
+      <h3>All Results</h3>
+      <div class="card">
+        🔔 View results<br>
+        <a href="admin-match-results.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+    <div id="deposits" class="section">
+      <h3>Deposits</h3>
+      <div class="card">
+        💰 Approve deposits<br>
+        <a href="admin-deposits.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+    <div id="withdrawals" class="section">
+      <h3>Withdrawals</h3>
+      <div class="card">
+        🏧 Control<br>
+        <a href="admin-withdral.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+    <div id="Settings" class="section">
+      <h3>Settings</h3>
+      <div class="card">
+        ⚙️ App Config<br>
+        <a href="admin-settings.html" style="color:var(--highlight);">Open</a>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function switchSection(id) {
+      document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+
+      document.querySelector(`[onclick="switchSection('${id}')"]`).classList.add('active');
+      document.getElementById(id).classList.add('active');
+
+      if (window.innerWidth <= 768) {
+        document.getElementById("sidebar").classList.remove("open");
+      }
+    }
+
+    const sidebar = document.getElementById("sidebar");
+    const menuToggle = document.getElementById("menuToggle");
+    const themeToggle = document.getElementById("themeToggle");
+
+    // Mobile Sidebar
+    menuToggle.onclick = () => {
+      if (window.innerWidth <= 768) {
+        sidebar.classList.toggle("open");
+      } else {
+        sidebar.classList.toggle("collapsed");
+      }
+    };
+
+    // Light/Dark Mode
+    themeToggle.onclick = () => {
+      document.body.classList.toggle("light");
+      themeToggle.classList.toggle("ri-sun-fill");
+      themeToggle.classList.toggle("ri-moon-fill");
+    };
+  </script>
+
+</body>
+</html>

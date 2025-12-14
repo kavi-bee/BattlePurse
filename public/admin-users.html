@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin - Registered Users</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #121212;
+      color: #fff;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #00faff;
+    }
+    input[type="text"] {
+      width: 300px;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      margin-bottom: 20px;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      background: #1e1e1e;
+      color: #fff;
+      box-shadow: inset 0 0 6px #00faff44;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #1e1e1e;
+      margin-top: 20px;
+      box-shadow: 0 0 10px #00faff33;
+    }
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid #333;
+    }
+    th {
+      background-color: #00faff22;
+    }
+    button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 2px;
+    }
+    .ban { background: #ff4d4d; color: #fff; }
+    .unban { background: #4caf50; color: #fff; }
+    .view { background: #00faff; color: #000; }
+    .reset { background: orange; color: #000; }
+  </style>
+</head>
+<body>
+
+<h1>👥 Registered Users</h1>
+
+<input type="text" id="search" placeholder="Search by phone..." oninput="filterUsers()" />
+
+<table id="usersTable">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Phone</th>
+      <th>Role</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+  const token = localStorage.getItem("token");
+  let allUsers = [];
+
+  async function loadUsers() {
+    try {
+      const res = await fetch("http://localhost:5000/api/wallet/admin/users", {
+        headers: { Authorization: "Bearer " + token }
+      });
+      const data = await res.json();
+      allUsers = data.users;
+      displayUsers(data.users);
+    } catch (err) {
+      console.error("Failed to fetch users", err);
+      alert("❌ Error fetching users");
+    }
+  }
+
+  function displayUsers(users) {
+    const tableBody = document.querySelector("#usersTable tbody");
+    tableBody.innerHTML = users.map((user, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${user.phone}</td>
+        <td>${user.isAdmin ? 'Admin' : 'User'}</td>
+        <td>${user.banned ? 'Banned' : 'Active'}</td>
+        <td>
+          <button class="${user.banned ? 'unban' : 'ban'}" onclick="toggleBan('${user._id}', ${user.banned})">
+            ${user.banned ? 'Unban' : 'Ban'}
+          </button>
+          <button class="view" onclick="viewProfile('${user._id}')">View</button>
+          <button class="reset" onclick="resetPassword('${user._id}')">Reset PW</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function filterUsers() {
+    const search = document.getElementById("search").value.trim();
+    const filtered = allUsers.filter(user =>
+      user.phone.includes(search)
+    );
+    displayUsers(filtered);
+  }
+
+  async function toggleBan(userId, isBanned) {
+    const endpoint = isBanned ? 'unban' : 'ban';
+    try {
+      const res = await fetch(`http://localhost:5000/api/wallet/admin/${endpoint}/${userId}`, {
+        method: "PUT",
+        headers: { Authorization: "Bearer " + token }
+      });
+      const data = await res.json();
+      alert(data.msg);
+      loadUsers();
+    } catch (err) {
+      console.error(err);
+      alert("❌ Failed to update ban status");
+    }
+  }
+
+  function viewProfile(userId) {
+    window.location.href = `user-profile.html?userId=${userId}`;
+  }
+
+  async function resetPassword(userId) {
+    const newPass = prompt("Enter new password (min 4 chars):");
+    if (!newPass || newPass.length < 4) return alert("❌ Password too short");
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/wallet/admin/reset-password/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token
+        },
+        body: JSON.stringify({ newPassword: newPass })
+      });
+      const data = await res.json();
+      alert(data.msg);
+    } catch (err) {
+      console.error(err);
+      alert("❌ Failed to reset password");
+    }
+  }
+
+  window.onload = loadUsers;
+</script>
+
+</body>
+</html>

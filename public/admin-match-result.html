@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin — Complete Match Results & Payout</title>
+<style>
+:root{
+  --bg:#0b0b0b; --card:#111; --accent:#00d5ff; --muted:#9aa; --ok:#4ade80; --danger:#ff5b5b;
+}
+body{
+  font-family: Inter, Poppins, system-ui, sans-serif;
+  background:var(--bg); color:#fff; padding:18px;
+}
+h1{ color:var(--accent); text-align:center; margin-bottom:18px; }
+.wrap{ max-width:1100px; margin:0 auto; }
+.match{ background:var(--card); padding:14px; border-radius:10px; margin-bottom:18px; border:1px solid rgba(0,213,255,0.06); }
+.meta{ display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+.meta b{ color:var(--accent); }
+table{ width:100%; border-collapse:collapse; margin-top:10px; }
+th,td{ padding:8px; border-bottom:1px solid rgba(255,255,255,0.04); text-align:left; font-size:14px; vertical-align:middle;}
+th{ color:var(--accent); }
+.thumb{ width:72px; height:64px; object-fit:cover; border-radius:6px; cursor:pointer; border:1px solid rgba(0,213,255,0.06); }
+.controls{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+.controls-right{ margin-left:auto; display:flex; gap:8px; align-items:center; }
+.btn{ background:var(--accent); color:#000; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; }
+.btn:disabled{ opacity:.6; cursor:not-allowed; }
+.btn-danger{ background:var(--danger); color:#fff; }
+.btn-win{ background:var(--ok); color:#000; font-weight:700; padding:6px 10px; border-radius:8px; border:none; cursor:pointer; }
+.small{ font-size:13px; color:var(--muted); }
+.resultPreview{ background:#0f1720; padding:10px; border-radius:8px; margin-top:10px; border:1px solid rgba(255,255,255,0.03); }
+.inputKills{ width:80px; padding:6px; border-radius:6px; border:1px solid #222; background:#0b0b0b; color:#fff; }
+.info{ color:var(--muted); font-size:13px; }
+.loading{ color:var(--accent); text-align:center; margin:14px 0; }
+.modal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); align-items:center; justify-content:center; z-index:9999; }
+.modal img{ max-width:90%; max-height:90%; border-radius:8px; border:4px solid var(--accent); }
+.closeX{ position:absolute; top:18px; right:22px; color:var(--accent); font-size:28px; cursor:pointer; }
+.label{ font-size:13px; color:var(--muted); margin-right:6px; }
+select,input[type="text"]{ background:#0b0b0b; border:1px solid #222; color:#fff; padding:6px; border-radius:6px; }
+@media (max-width:720px){
+  .meta{ flex-direction:column; align-items:flex-start; }
+  .controls-right{ margin-left:0; width:100%; justify-content:flex-end; }
+  .controls{ flex-direction:column; align-items:flex-start; }
+  .btn{ width:100%; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Admin — Complete Match Results & Payout</h1>
+
+  <div id="error" class="info" style="display:none;margin-bottom:12px"></div>
+  <div id="loading" class="loading">Loading matches...</div>
+
+  <!-- Top controls -->
+  <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+    <div class="label">API Base:</div>
+    <input id="apiBaseInput" type="text" value="http://localhost:5000/api/wallet" style="min-width:320px">
+    <button class="btn" id="saveApiBtn">Save</button>
+    <div style="margin-left:auto">
+      <button class="btn btn-danger" id="clearTokenBtn">Clear token</button>
+    </div>
+  </div>
+
+  <div id="matches"></div>
+</div>
+
+<!-- Screenshot modal -->
+<div class="modal" id="modal">
+  <span class="closeX" id="closeModalBtn">×</span>
+  <img id="modalImg" src="" alt="screenshot">
+</div>
+
+<script>
+let API_BASE = localStorage.getItem('adminApiBase') || "http://localhost:5000/api/wallet";
+document.getElementById('apiBaseInput').value = API_BASE;
+const token = localStorage.getItem("token") || "";
+const selection = {};
+
+
+const KILL_GAMES = [
+  "bgmi","pubg","free fire","freefire","free-fire",
+  "ludo","carrom","8 ball pool","8ball","cricket"
+];
+
+
+
+document.getElementById('saveApiBtn').addEventListener("click", ()=>{
+  API_BASE = document.getElementById('apiBaseInput').value.trim() || API_BASE;
+  localStorage.setItem('adminApiBase', API_BASE);
+  alert('API base saved: ' + API_BASE);
+});
+
+document.getElementById('clearTokenBtn').addEventListener("click", ()=>{
+  localStorage.removeItem('token');
+  alert('Admin token cleared.');
+});
+
+document.getElementById('closeModalBtn').addEventListener("click", ()=>{ document.getElementById('modal').style.display='none'; });
+
+function showError(msg){ const e = document.getElementById("error"); e.style.display = msg ? "block" : "none"; e.innerText = msg || ""; }
+function showLoading(flag){ document.getElementById("loading").style.display = flag ? "block" : "none"; }
+function openModal(src){ const modal = document.getElementById("modal"); document.getElementById("modalImg").src = src; modal.style.display='flex'; }
+function escapeHtml(s){ if(s===null||s===undefined) return ""; return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadMatches(){
+  showError("");
+  if(!token){ showError("Admin token missing — store admin token at localStorage key 'token'"); showLoading(false); return; }
+  showLoading(true);
+  try{
+    const r = await fetch(`${API_BASE}/admin/match/results`, { method: "GET", headers: { "Authorization": "Bearer " + token } });
+    const data = await r.json();
+    if(!data.success){ showError(data.msg || "Failed loading matches"); document.getElementById("matches").innerHTML = ""; return; }
+    renderMatches(data.list || []);
+  }catch(err){
+    console.error(err);
+    showError("Network error while loading matches");
+    document.getElementById("matches").innerHTML = "";
+  } finally { showLoading(false); }
+}
+
+function renderMatches(list){
+  const container = document.getElementById("matches");
+  container.innerHTML = "";
+  if(!Array.isArray(list) || list.length === 0){
+    container.innerHTML = `<div class="info">No match results available.</div>`;
+    return;
+  }
+
+  list.forEach(match => {
+    const rawPlayers = Array.isArray(match.results) && match.results.length ? match.results : (Array.isArray(match.userResults) && match.userResults.length ? match.userResults : (Array.isArray(match.players) ? match.players : []));
+    const players = rawPlayers.map((p, idx) => {
+      let userId = p.userId?._id || p.userId || p._id || String(idx);
+      return {
+        userId: String(userId),
+        name: p.name || (p.userId && p.userId.name) || "-",
+        uidDisplay: p.uid || (p.userId && p.userId.uid) || "",
+        team: p.team || "-",
+        kills: Number(p.kills || 0),
+        screenshotUrl: p.screenshotUrl || p.screenshot || "",
+        uploadedAt: p.uploadedAt || p.createdAt || p.uploaded || null,
+        result: p.result || "",
+        prize: Number(p.prize || 0)
+      };
+    });
+
+    const matchDiv = document.createElement("div");
+    matchDiv.className = "match";
+    matchDiv.id = "match_" + (match._id || Math.random().toString(36).slice(2));
+
+    let html = '';
+    html += `<div class="meta">`;
+    html += `<div><b>Match #${escapeHtml(match.matchNumber || match._id || "")}</b>`;
+    html += `<div class="small">${escapeHtml(match.game || "Unknown")} • ${escapeHtml(match.mode || "-")} • ${escapeHtml(match.type || "-")}</div></div>`;
+    html += `<div class="controls-right"><label class="label small">Prize system</label>`;
+    html += `<select id="ps_${escapeHtml(String(match._id))}">`;
+    html += `<option value="">(use match)</option>`;
+    html += `<option value="team_equal"${match.prizeSystem==="team_equal" ? " selected" : ""}>team_equal</option>`;
+    html += `<option value="kill_based"${match.prizeSystem==="kill_based" ? " selected" : ""}>kill_based</option>`;
+    html += `</select></div></div>`;
+
+    html += `<table><thead><tr><th>Winner</th><th>Player</th><th>Team</th><th>Kills</th><th>Screenshot</th><th>Uploaded</th><th>Prize</th></tr></thead><tbody>`;
+    const matchGame = String(match.game || "").toLowerCase();
+    
+    const isKillGame = KILL_GAMES.some(g => matchGame.includes(g));
+
+
+    players.forEach(p => {
+      const rowBg = p.result === 'win' ? ' style="background:rgba(74,222,128,0.06)"' : '';
+      html += `<tr data-userid="${escapeHtml(p.userId)}"${rowBg}>`;
+      html += `<td style="white-space:nowrap"><button type="button" class="btn-win select-user" data-match="${escapeHtml(match._id)}" data-user="${escapeHtml(p.userId)}" data-name="${escapeHtml(p.name)}">WIN</button></td>`;
+      html += `<td>${escapeHtml(p.name)}<br><small class="small">${escapeHtml(p.uidDisplay)}</small></td>`;
+      html += `<td>${escapeHtml(p.team)}</td>`;
+
+      html += `<td>${ isKillGame ? `<input class="inputKills" type="number" value="${escapeHtml(String(p.kills))}" data-user="${escapeHtml(p.userId)}" min="0">` : '&mdash;' }</td>`;
+      
+      html += `<td>${ p.screenshotUrl ? `<img class="thumb" src="${escapeHtml(p.screenshotUrl)}" alt="screenshot">` : `<span class="small">No screenshot</span>` }</td>`;
+      html += `<td class="small">${ p.uploadedAt ? escapeHtml(new Date(p.uploadedAt).toLocaleString()) : '-' }</td>`;
+      html += `<td class="small">₹${escapeHtml(String(p.prize || 0))}</td>`;
+      html += `</tr>`;
+    });
+
+    html += `</tbody></table>`;
+
+    // Controls: team select + preview + complete
+    html += `<div class="controls">`;
+    html += `<div><label class="label small">Or select winner team:</label>`;
+    html += `<label class="small"><input type="radio" name="team_${escapeHtml(String(match._id))}" value="LION" class="team-select"> LION</label>`;
+    html += `<label class="small"><input type="radio" name="team_${escapeHtml(String(match._id))}" value="TIGER" class="team-select"> TIGER</label>`;
+    html += `</div>`;
+    html += `<div class="controls-right">`;
+    html += `<button type="button" class="btn preview-btn" data-matchid="${escapeHtml(match._id)}" data-entryfee="${escapeHtml(String(Number(match.entryFee||0)))}" data-type="${escapeHtml(String(match.type||""))}" data-prizesystem="${escapeHtml(String(match.prizeSystem||""))}" data-game="${escapeHtml(String(match.game||""))}">Preview Payout</button>`;
+    html += `<button type="button" class="btn complete-btn" data-matchid="${escapeHtml(match._id)}" data-type="${escapeHtml(String(match.type||""))}">Complete Match</button>`;
+    html += `<button type="button" class="btn btn-danger delete-btn" data-matchid="${escapeHtml(match._id)}">Delete Match</button>`;
+    html += `</div></div>`;
+    html += `<div id="preview_${escapeHtml(match._id)}" class="resultPreview" style="display:none"></div>`;
+
+    matchDiv.innerHTML = html;
+    container.appendChild(matchDiv);
+  });
+
+  attachMatchHandlers();
+}
+
+// --- Handlers ---
+function attachMatchHandlers(){
+  document.querySelectorAll(".select-user").forEach(btn=>{ btn.removeEventListener("click", onSelectUser); btn.addEventListener("click", onSelectUser); });
+  document.querySelectorAll(".team-select").forEach(radio=>{ radio.removeEventListener("change", onSelectTeam); radio.addEventListener("change", onSelectTeam); });
+  document.querySelectorAll(".preview-btn").forEach(btn=>{ btn.removeEventListener("click", onPreview); btn.addEventListener("click", onPreview); });
+  document.querySelectorAll(".complete-btn").forEach(btn=>{ btn.removeEventListener("click", onComplete); btn.addEventListener("click", onComplete); });
+  document.querySelectorAll(".delete-btn").forEach(btn=>{ btn.removeEventListener("click", onDelete); btn.addEventListener("click", onDelete); });
+  document.querySelectorAll(".thumb").forEach(img=>{ img.removeEventListener("click", onThumbClick); img.addEventListener("click", onThumbClick); });
+}
+
+function onSelectUser(e){ const matchId = e.currentTarget.dataset.match; const userId = e.currentTarget.dataset.user; const name = e.currentTarget.dataset.name; selection[matchId] = { type:'user', id:userId }; alert('Selected WINNER: ' + name); }
+function onSelectTeam(e){ const matchId = e.currentTarget.name.replace(/^team_/,''); selection[matchId] = { type:'team', id:e.currentTarget.value }; }
+function onThumbClick(e){ const src = e.currentTarget.getAttribute('src'); if(src) openModal(src); }
+function onPreview(e){ previewPayout(e.currentTarget.dataset.matchid, Number(e.currentTarget.dataset.entryfee), e.currentTarget.dataset.type, e.currentTarget.dataset.prizesystem, e.currentTarget.dataset.game); }
+
+function onComplete(e){
+  const btn = e.currentTarget;
+  const matchId = btn.dataset.matchid;
+  const rows = Array.from(document.querySelectorAll(`#match_${matchId} tbody tr`));
+  const kills = rows.map(r => ({ userId: r.dataset.userid, kills: Number(r.querySelector('.inputKills')?.value || 0) }));
+  const prizeSystem = document.getElementById(`ps_${matchId}`)?.value;
+  const winnerTeam = selection[matchId]?.type === 'team' ? selection[matchId].id : undefined;
+
+  if(!selection[matchId] && (btn.dataset.type || "").toLowerCase() !== "1v1"){ alert("No winner selected."); return; }
+  if(!confirm("Are you sure you want to complete this match and issue payouts?")) return;
+
+  fetch(`${API_BASE}/admin/match/complete`,{
+    method:"POST",
+    headers:{ "Content-Type":"application/json","Authorization":"Bearer "+token },
+    body: JSON.stringify({ matchId, winnerTeam, kills, prizeSystem })
+  }).then(r=>r.json()).then(data=>{
+    if(!data.success){ alert(data.msg || "Server error"); console.error(data); return; }
+    alert("Match completed ✅ — payouts: "+(data.payouts?JSON.stringify(data.payouts):data.prizePool));
+    delete selection[matchId];
+    loadMatches();
+  }).catch(err=>{ console.error(err); alert("Network error"); });
+}
+
+function onDelete(e){
+  const matchId = e.currentTarget.dataset.matchid;
+  if(!confirm("Delete match permanently?")) return;
+  fetch(`${API_BASE}/admin/match/${matchId}`, { method:"DELETE", headers:{ "Authorization":"Bearer "+token } })
+    .then(r=>r.json()).then(data=>{ if(!data.success) alert(data.msg || "Delete failed"); else { alert("Deleted"); loadMatches(); } })
+    .catch(err=>{ console.error(err); alert("Network error"); });
+}
+
+// --- Preview Payout (mirrors backend calculation)
+function previewPayout(matchId, entryFee, matchType, serverPrizeSystem, matchGameRaw){
+  const previewBox = document.getElementById("preview_"+matchId);
+  if(!previewBox) return;
+  previewBox.style.display="block";
+
+  const rows = Array.from(document.querySelectorAll(`#match_${matchId} tbody tr`));
+  const players = rows.map(r=>({ userId:r.dataset.userid, name:r.children[1].innerText.split("\n")[0], team:r.children[2].innerText, kills:Number(r.querySelector('.inputKills')?.value||0) }));
+  const prizeSystem = document.getElementById(`ps_${matchId}`)?.value || serverPrizeSystem || 'team_equal';
+  const matchGame = (matchGameRaw||"").toLowerCase();
+  const isKillGame = KILL_GAMES.some(g=>matchGame.includes(g));
+
+  let winnerIds = [];
+  if(selection[matchId]){
+    if(selection[matchId].type==='user'){ winnerIds.push(selection[matchId].id); }
+    else if(selection[matchId].type==='team'){ winnerIds = players.filter(p=>p.team===selection[matchId].id).map(p=>p.userId); }
+  }
+
+  let totalPool = entryFee * winnerIds.length;
+  let previewHtml = `<b>Payout Preview (${prizeSystem})</b><br>`;
+  if(prizeSystem==="kill_based" && isKillGame){
+    const totalKills = players.filter(p=>winnerIds.includes(p.userId)).reduce((acc,p)=>acc+p.kills,0) || 1;
+    winnerIds.forEach(uid=>{
+      const p = players.find(pl=>pl.userId===uid);
+      const amt = Math.round(totalPool * (p.kills/totalKills));
+      previewHtml += `${escapeHtml(p.name)}: ₹${amt}<br>`;
+    });
+  } else {
+    const amt = Math.round(totalPool / (winnerIds.length||1));
+    winnerIds.forEach(uid=>{
+      const p = players.find(pl=>pl.userId===uid);
+      previewHtml += `${escapeHtml(p.name)}: ₹${amt}<br>`;
+    });
+  }
+  previewBox.innerHTML = previewHtml;
+}
+
+loadMatches();
+</script> 
+</body>
+</html>

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Profile Page</title>
+  <style>
+/* Minimal logo-only loader */
+/* Premium page loader overlay (smaller + cleaner) */
+.page-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #010101, #0b0b0b, #111);
+    animation: bgMove 7s infinite alternate ease-in-out;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Background animation */
+@keyframes bgMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 180% 180%; }
+}
+
+.page-loader .loader-box {
+    text-align: center;
+    animation: fadeIn 0.9s ease-out forwards;
+}
+
+/* Smaller logo */
+.page-loader-logo {
+    width: 55px;
+    border-radius: 14px;
+    box-shadow: 0 0 14px rgba(0,255,255,0.32);
+    position: relative;
+}
+
+/* Shine effect (scaled down) */
+.page-loader .shine {
+    position: absolute;
+    top: 0;
+    left: -90px;
+    width: 90px;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-20deg);
+    animation: shineMove 2s infinite;
+}
+
+@keyframes shineMove {
+    0% { left: -90px; }
+    100% { left: 120px; }
+}
+
+/* Smaller app title */
+.page-loader-title {
+    font-size: 16px;
+    color: #00eaff;
+    margin-top: 8px;
+    letter-spacing: 0.8px;
+    animation: glowPulse 2s infinite ease-in-out;
+    text-shadow: 0 0 7px rgba(0,255,255,0.45);
+}
+
+@keyframes glowPulse {
+    0%, 100% { text-shadow: 0 0 6px #00eaff; }
+    50% { text-shadow: 0 0 12px #00eaff; }
+}
+
+/* Slimmer loading bar (smaller) */
+.loader-bar {
+    width: 115px;
+    height: 4px;
+    background: rgba(255,255,255,0.07);
+    margin: 12px auto 0;
+    border-radius: 50px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Smaller liquid animation */
+.loader-liquid {
+    width: 40px;
+    height: 100%;
+    border-radius: 50px;
+    background: linear-gradient(90deg, #00eaff, #14ffec, #00b7ff);
+    position: absolute;
+    left: -45px;
+    animation: slideLiquid 1.4s infinite ease-in-out;
+}
+
+@keyframes slideLiquid {
+    0% { left: -45px; }
+    100% { left: 140px; }
+}
+
+/* Fade out */
+.hide-loader {
+    opacity: 0;
+    transition: opacity 0.55s ease;
+    pointer-events: none;
+}
+
+
+
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #121212;
+      color: #fff;
+    }
+    .container {
+      max-width: 450px;
+      margin: 30px auto 80px;
+      padding: 20px;
+      background: #1c1c1c;
+      border-radius: 16px;
+      box-shadow: 0 0 15px #00faff88;
+    }
+    .avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      display: block;
+      margin: 0 auto;
+      border: 3px solid #00faff;
+      object-fit: cover;
+    }
+    .upload-btn {
+      text-align: center;
+      margin: 10px auto;
+    }
+    .user-info {
+      text-align: center;
+      margin-top: 10px;
+    }
+    .user-info div {
+      margin: 5px 0;
+      font-weight: 500;
+    }
+    .form-group {
+      margin-top: 25px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    input[type="text"],
+    input[type="file"] {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: #121212;
+      color: #fff;
+      box-shadow: inset 0 0 5px #00faff55;
+      margin-bottom: 18px;
+    }
+    .wallet {
+      text-align: center;
+      font-size: 18px;
+      margin: 20px 0;
+      padding: 10px;
+      background: #1a1a1a;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #00faff88;
+    }
+    .button {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      background: #00faff;
+      color: #000;
+      border: none;
+      border-radius: 30px;
+      margin-bottom: 15px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .button:hover {
+      background: #00c6d6;
+    }
+    .button.secondary {
+      background: #444;
+      color: #fff;
+    }
+    #adminSection {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+    }
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1e1e1e;
+      display: flex;
+      justify-content: space-around;
+      padding: 12px 0;
+      border-top: 1px solid #333;
+      z-index: 10;
+    }
+    .nav-btn {
+      color: #aaa;
+      text-align: center;
+      font-size: 14px;
+    }
+    .nav-btn i {
+      display: block;
+      font-size: 20px;
+      margin-bottom: 3px;
+    }
+    .nav-btn.active {
+      color: #00faff;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-loader" id="pageLoader">
+    <div class="loader-box">
+        <div style="position: relative; display:inline-block;">
+            <img src="file_00000000c938722f8d26b428d0c8069c.png" class="page-loader-logo">
+            <div class="shine"></div>
+        </div>
+
+        <h2 class="loader-text"> LOADING PROFILE </h2>
+
+        <div class="loader-bar">
+            <div class="loader-liquid"></div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="container">
+  <img id="avatar-img" src="https://img.icons8.com/color/96/user.png" class="avatar" />
+  <div class="upload-btn">
+    <input type="file" id="avatarInput" accept="image/*" onchange="uploadAvatar()" />
+  </div>
+
+  <div class="user-info">
+    <div><strong>Name:</strong> <span id="username">Loading...</span></div>
+    <div><strong>Mobile:</strong> <span id="mobile">Loading...</span></div>
+    <div><strong>User ID:</strong> <span id="userid">Loading...</span></div>
+  </div>
+
+  <!-- Replace the form-group section with this in profile.html -->
+
+<div class="form-group">
+  <label>Free Fire UID</label>
+  <input type="text" id="ffid" disabled />
+  <label>BGMI UID</label>
+  <input type="text" id="bgmiid" disabled />
+  <label>Cricket UID</label>
+  <input type="text" id="cricketid" disabled />
+  <label>Carrom Pool UID</label>
+  <input type="text" id="carrom" disabled />
+  <label>Ludo King UID</label>
+  <input type="text" id="ludo" disabled />
+  <label>8 Ball Pool UID</label>
+  <input type="text" id="eightball" disabled />
+</div>
+
+
+  
+  <div class="wallet">Wallet Balance: ₹<span id="wallet">0</span></div>
+
+  <button class="button" onclick="handleDeposit()">💰 Deposit</button>
+  <button class="button" onclick="handleWithdraw()">🏦 Withdraw</button>
+  <button class="button secondary" onclick="handleTransactions()">📜 Transaction History</button>
+
+  <div id="adminSection">
+    <h3>Admin Actions</h3>
+    <button class="button" onclick="location.href='admin.html'">👮 Admin Panel</button>
+  </div>
+</div>
+
+<footer>
+  <div class="nav-btn" onclick="location.href='gamezone.html'"><i>🎮</i>Game</div>
+  <div class="nav-btn" onclick="location.href='history.html'"><i>📜</i>History</div>
+  <div class="nav-btn" onclick="location.href='leaderboard.html'"><i>🏆</i>Leaderboard</div>
+  <div class="nav-btn active"><i>👤</i>Profile</div>
+  <div class="nav-btn" onclick="location.href='more.html'"><i>⋯</i>More</div>
+</footer>
+
+<!-- Keep your existing head and styles same -->
+
+<!-- ... unchanged HTML above ... -->
+
+<script>
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Please login first.");
+    window.location.href = "login.html";
+  }
+
+  function parseJwt(token) {
+    try {
+      return JSON.parse(atob(token.split('.')[1]));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  const payload = parseJwt(token);
+  if (payload?.isAdmin) {
+    document.getElementById("adminSection").style.display = "block";
+  }
+
+  async function loadProfile() {
+    try {
+      // Fetch profile data
+      const res = await fetch("http://localhost:5000/api/wallet/profile", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      const data = await res.json();
+      document.getElementById("username").textContent = data.user.name || "Player";
+      document.getElementById("mobile").innerText = data.user.phone;
+      document.getElementById("userid").textContent = data.user.id;
+      if (data.user.avatarUrl) {
+        document.getElementById("avatar-img").src = data.user.avatarUrl;
+      }
+
+      if (data.user.uids) {
+        document.getElementById("ffid").value = data.user.uids.freeFire || "";
+        document.getElementById("bgmiid").value = data.user.uids.bgmi || "";
+        document.getElementById("cricketid").value = data.user.uids.cricket || "";
+        document.getElementById("carrom").value = data.user.uids.carrom || "";
+        document.getElementById("ludo").value = data.user.uids.ludo || "";
+        document.getElementById("eightball").value = data.user.uids.eightBall || "";
+      }
+
+      // Fetch latest wallet balance
+      const walletRes = await fetch("http://localhost:5000/api/wallet/balance", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      const walletData = await walletRes.json();
+      document.getElementById("wallet").innerText = walletData.balance || 0;
+
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load profile or balance.");
+    }
+  }
+
+  async function saveUIDs() {
+    const uids = {
+      freeFire: document.getElementById("ffid").value,
+      bgmi: document.getElementById("bgmiid").value,
+      cricket: document.getElementById("cricketid").value, // New field
+      carrom: document.getElementById("carrom").value,
+      ludo: document.getElementById("ludo").value,
+      eightBall: document.getElementById("eightball").value,
+    };
+    try {
+      const res = await fetch("http://localhost:5000/api/wallet/save-uids", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(uids),
+      });
+      const data = await res.json();
+      alert("✅ " + (data.msg || "UIDs saved successfully."));
+      await loadProfile();
+    } catch (err) {
+      alert("❌ Failed to save UIDs.");
+      console.error(err);
+    }
+  }
+
+  async function uploadAvatar() {
+    const fileInput = document.getElementById("avatarInput");
+    if (!fileInput.files.length) return;
+
+    const formData = new FormData();
+    formData.append("avatar", fileInput.files[0]);
+
+    try {
+      const res = await fetch("http://localhost:5000/api/wallet/upload-avatar", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: formData,
+      });
+      const data = await res.json();
+      document.getElementById("avatar-img").src = data.url;
+      alert("✅ Avatar updated.");
+    } catch (err) {
+      alert("❌ Failed to upload avatar.");
+      console.error(err);
+    }
+  }
+
+  function handleDeposit() {
+    window.location.href = "deposite.html";
+  }
+
+  function handleWithdraw() {
+    window.location.href = "withdral.html";
+  }
+
+  function handleTransactions() {
+    window.location.href = "transaction.html";
+  }
+
+  window.onload = loadProfile;
+
+
+
+
+
+
+    window.addEventListener("load", () => {
+        setTimeout(() => {
+            document.getElementById("pageLoader").classList.add("hide-loader");
+        }, 400);
+    });
+
+
+
+
+</script>
+
+</body>
+</html>

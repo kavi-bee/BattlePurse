@@ -1,0 +1,307 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin — Complete Match Results & Payout</title>
+<style>
+:root{--bg:#0b0b0b;--card:#111;--accent:#00d5ff;--muted:#9aa;--ok:#4ade80;}
+body{font-family:Inter, Poppins, system-ui, sans-serif;background:var(--bg);color:#fff;padding:18px;}
+h1{color:var(--accent);text-align:center;margin-bottom:18px;}
+.wrap{max-width:1100px;margin:0 auto;}
+.match{background:var(--card);padding:14px;border-radius:10px;margin-bottom:18px;border:1px solid rgba(0,213,255,0.08);}
+.meta{display:flex;gap:12px;align-items:center;margin-bottom:12px;}
+.meta b{color:var(--accent);}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.04);text-align:left;font-size:14px}
+th{color:var(--accent)}
+.thumb{width:72px;height:64px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid rgba(0,213,255,0.08)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.btn{background:var(--accent);color:#000;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-danger{background:#ff5b5b;color:#fff}
+.small{font-size:13px;color:var(--muted)}
+.resultPreview{background:#0f1720;padding:10px;border-radius:8px;margin-top:10px;border:1px solid rgba(255,255,255,0.03)}
+.inputKills{width:80px;padding:6px;border-radius:6px;border:1px solid #222;background:#0b0b0b;color:#fff}
+.info{color:var(--muted);font-size:13px}
+.loading{color:var(--accent);text-align:center;margin:14px 0}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);align-items:center;justify-content:center;z-index:9999}
+.modal img{max-width:90%;max-height:90%;border-radius:8px;border:4px solid var(--accent)}
+.closeX{position:absolute;top:18px;right:22px;color:var(--accent);font-size:28px;cursor:pointer}
+.highlight { outline: 2px solid rgba(0,234,255,.12); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Admin — Complete Match Results & Payout</h1>
+
+    <div id="error" class="info" style="display:none;margin-bottom:12px"></div>
+    <div id="loading" class="loading">Loading matches...</div>
+
+    <div id="matches"></div>
+
+    <div style="margin-top:24px;text-align:center;">
+      <button class="btn btn-danger" onclick="localStorage.removeItem('token'); alert('Admin token cleared. Please login again.');">Clear token</button>
+    </div>
+  </div>
+
+  <div class="modal" id="modal">
+    <span class="closeX" onclick="closeModal()">×</span>
+    <img id="modalImg" src="" alt="screenshot">
+  </div>
+
+<script>
+/* ========== CONFIG ========== */
+const API_BASE = "http://localhost:5000/api/wallet"; // adjust to your API
+const token = localStorage.getItem("token") || "";   // ensure admin token is stored here
+
+/* ========== HELPERS ========== */
+function el(q){ return document.querySelector(q); }
+function elAll(q){ return Array.from(document.querySelectorAll(q)); }
+function showError(msg){ const e = el("#error"); e.style.display = msg ? "block" : "none"; e.innerText = msg || ""; }
+function showLoading(flag){ el("#loading").style.display = flag ? "block" : "none"; }
+function openModal(src){ el("#modalImg").src = src; el("#modal").style.display = "flex"; }
+function closeModal(){ el("#modal").style.display = "none"; }
+
+/* ========== LOAD MATCHES ========== */
+async function loadMatches(){
+  showError("");
+  if(!token){ showError("Admin token missing — set localStorage token."); showLoading(false); return; }
+  showLoading(true);
+  try {
+    const r = await fetch(`${API_BASE}/admin/match/results`, {
+      method: "GET",
+      headers: { "Authorization": "Bearer " + token }
+    });
+    const data = await r.json();
+    if (!data.success) {
+      showError(data.msg || "Failed loading");
+      el("#matches").innerHTML = "";
+    } else {
+      renderMatches(data.list || []);
+    }
+  } catch (err) {
+    console.error(err);
+    showError("Network error while loading matches");
+    el("#matches").innerHTML = "";
+  } finally {
+    showLoading(false);
+  }
+}
+
+/* ========== RENDER ========== */
+function renderMatches(list){
+  if (!list.length) {
+    el("#matches").innerHTML = `<div class='info'>No match results available.</div>`;
+    return;
+  }
+
+  const boardGameNames = ["ludo","carrom","8 ball pool","cricket"];
+
+  const out = list.map(match => {
+    const prizeSystem = match.prizeSystem || "team_equal";
+    const players = (match.results || match.data || match.players || []).map(p => ({
+      userId: (p.userId && (p.userId._id || p.userId)) || p.userId || p.id || p._id || "",
+      name: p.name || (p.userId && p.userId.name) || "-",
+      uid: p.uid || (p.userId && p.userId.uid) || "-",
+      team: p.team || "-",
+      kills: Number(p.kills || (p.kills === 0 ? 0 : (p.kills || 0))),
+      screenshotUrl: p.screenshotUrl || ""
+    }));
+
+    const hideKills = boardGameNames.includes((match.game || "").toLowerCase());
+
+    const rowsHtml = players.map(p => `
+      <tr data-userid="${p.userId}">
+        <td style="width:36px"><input type="radio" name="winner_${match._id}" class="teamRadio"></td>
+        <td>${escapeHtml(p.name)}<br><small class="small">${escapeHtml(p.uid)}</small></td>
+        <td>${escapeHtml(p.team)}</td>
+        <td>${hideKills ? '-' : `<input class="inputKills" type="number" value="${p.kills}" data-user="${p.userId}">`}</td>
+        <td>${p.screenshotUrl ? `<img class='thumb' src='${p.screenshotUrl}' onclick="openModal('${p.screenshotUrl}')">` : `<span class='small'>No screenshot</span>`}</td>
+      </tr>
+    `).join("");
+
+    return `
+      <div class="match" id="match_${match._id}">
+        <div class="meta">
+          <div>
+            <b>Match #${match.matchNumber || match._id}</b>
+            <div class="small">${escapeHtml(match.game || "Unknown")} • ${escapeHtml(match.mode || "-")} • ${escapeHtml(match.type || "-")}</div>
+          </div>
+          <div style="margin-left:auto" class="small">Entry Fee: ₹${match.entryFee || 0} • Players: ${players.length} • Prize System: ${escapeHtml(prizeSystem)}</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>Select</th><th>Player</th><th>Team</th><th>Kills</th><th>Screenshot</th></tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div class="controls">
+          <div class="flex-row"><label class="small">Select winner player (admin)</label></div>
+          <div style="margin-left:auto" class="flex-row">
+            <button class="btn" onclick="previewPayout('${match._id}', ${Number(match.entryFee||0)})">Preview Payout</button>
+            <button class="btn btn-winner" onclick="submitComplete('${match._id}', ${Number(match.entryFee||0)})">Complete Match</button>
+            <button class="btn btn-danger" onclick="deleteMatch('${match._id}')">Delete Match</button>
+          </div>
+        </div>
+
+        <!-- Preview container (must exist to avoid null error) -->
+        <div id="preview_payout_${match._id}" class="resultPreview" style="display:none"></div>
+      </div>
+    `;
+  });
+
+  el("#matches").innerHTML = out.join("");
+}
+
+/* simple escaper for names/UIDs */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+/* ========== PREVIEW PAYOUT ========== */
+function previewPayout(matchId, entryFee) {
+  // get table rows & selected radio
+  const matchEl = el(`#match_${matchId}`);
+  if (!matchEl) return alert("Match not found in DOM");
+
+  const rows = [...matchEl.querySelectorAll("tbody tr")];
+  const selected = matchEl.querySelector("input[type=radio]:checked");
+  if (!selected) {
+    return alert("Please select a winner first (radio button).");
+  }
+  const winnerRow = selected.closest("tr");
+  const winnerId = winnerRow?.dataset?.userid;
+  const winnerName = winnerRow?.children[1]?.innerText?.split("\n")[0].trim() || "Winner";
+
+  // detect board game
+  const gameText = (matchEl.querySelector(".meta .small")?.innerText || "").toLowerCase();
+  const ignoreKills = ["ludo","carrom","8 ball pool","cricket"].some(g => gameText.includes(g));
+
+  // amounts
+  const totalPlayers = rows.length;
+  const totalCollected = Number(entryFee) * totalPlayers;
+  const adminCut = Math.round(totalCollected * 0.08);
+  const prizePool = Math.max(0, totalCollected - adminCut);
+
+  // build preview html
+  let html = `<div style="display:flex;gap:12px;flex-direction:column">`;
+  html += `<div><b>Admin Selected Winner:</b> ${escapeHtml(winnerName)}</div>`;
+  html += `<div style="font-size:13px;color:var(--muted)">Winner UID: <b>${escapeHtml(winnerId)}</b></div>`;
+  html += `<div style="margin-top:6px">Total players: ${totalPlayers}</div>`;
+  html += `<div>Total collected: ₹${totalCollected}</div>`;
+  html += `<div>Admin cut (8%): ₹${adminCut}</div>`;
+  html += `<hr style="border-color:#333;margin:8px 0">`;
+  html += `<div style="font-size:16px"><b>Winner receives: ₹${prizePool}</b></div>`;
+  if (!ignoreKills) {
+    html += `<div style="font-size:13px;color:var(--muted)">Note: kills input will be used for non-board games if prize system is kill-based.</div>`;
+  } else {
+    html += `<div style="font-size:13px;color:var(--muted)">Board game — kills ignored, admin selection controls payout.</div>`;
+  }
+  html += `</div>`;
+
+  const box = el(`#preview_payout_${matchId}`);
+  if (!box) return alert("Preview container missing (this should not happen)");
+  box.style.display = "block";
+  box.innerHTML = html;
+  box.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+/* ========== SUBMIT COMPLETE ========== */
+async function submitComplete(matchId, entryFee) {
+  const matchEl = el(`#match_${matchId}`);
+  if (!matchEl) return alert("Match not found");
+
+  const selected = matchEl.querySelector("input[type=radio]:checked");
+  if (!selected) return alert("Please select a winner (radio).");
+  const winnerId = selected.closest("tr")?.dataset?.userid;
+  if (!winnerId) return alert("Winner user id not found");
+
+  const gameText = (matchEl.querySelector(".meta .small")?.innerText || "").toLowerCase();
+  const ignoreKills = ["ludo","carrom","8 ball pool","cricket"].some(g => gameText.includes(g));
+
+  const rows = [...matchEl.querySelectorAll("tbody tr")];
+  const kills = rows.map(r => {
+    const uid = r.dataset.userid;
+    if (ignoreKills) {
+      return { userId: uid, kills: 0 };
+    } else {
+      const inp = r.querySelector("input.inputKills");
+      if (inp) return { userId: uid, kills: Number(inp.value || 0) };
+      return { userId: uid, kills: uid === winnerId ? 1 : 0 };
+    }
+  });
+
+  if (!confirm("Are you sure you want to complete this match and pay the admin-selected winner?")) return;
+
+  try {
+    showLoading(true);
+
+    const body = {
+      matchId,
+      kills,
+      prizeSystem: ""
+    };
+
+    // 👇 IMPORTANT FIX
+    if (ignoreKills) {
+      body.winners = [winnerId]; // simple games require winners[]
+    } else {
+      body.winnerTeam = winnerId; // kill games or team matches
+    }
+
+    const res = await fetch(`${API_BASE}/admin/match/completes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.msg || "Server responded with failure");
+      console.error("complete response:", data);
+    } else {
+      alert("Match completed and payout issued 👍");
+      loadMatches();
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Network error while completing match");
+  } finally {
+    showLoading(false);
+  }
+}
+
+
+/* ========== DELETE MATCH ========== */
+async function deleteMatch(matchId) {
+  if (!confirm("Permanently delete this match? This cannot be undone.")) return;
+  try {
+    showLoading(true);
+    const res = await fetch(`${API_BASE}/admin/match/${matchId}`, {
+      method: "DELETE",
+      headers: { "Authorization": "Bearer " + token }
+    });
+    const data = await res.json();
+    if (!data.success) alert(data.msg || "Failed to delete");
+    else { alert("Deleted"); loadMatches(); }
+  } catch (err) {
+    console.error(err);
+    alert("Network error while deleting");
+  } finally { showLoading(false); }
+}
+
+/* ========== INIT ========== */
+loadMatches();
+</script>
+</body>
+</html>

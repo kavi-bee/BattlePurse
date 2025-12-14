@@ -1,0 +1,275 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tournament App</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: #121212;
+      color: #fff;
+    }
+
+    .page {
+      display: none;
+      padding: 20px;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #1e1e1e;
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+      border-top: 1px solid #333;
+      z-index: 1000;
+    }
+
+    .nav-btn {
+      color: #aaa;
+      text-align: center;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .nav-btn.active {
+      color: #00faff;
+    }
+
+    .nav-btn i {
+      font-size: 22px;
+      display: block;
+    }
+
+    .badge {
+      position: absolute;
+      background: #00faff;
+      color: #000;
+      border-radius: 50%;
+      font-size: 12px;
+      padding: 2px 6px;
+      top: 5px;
+      right: 18%;
+    }
+
+    .game-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .game-card {
+      background: #222;
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+      box-shadow: 0 0 10px #000;
+    }
+
+    .game-card img {
+      width: 60px;
+      height: 60px;
+      margin-bottom: 10px;
+    }
+
+    .game-card span {
+      display: block;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Pages -->
+<div id="gameZone.html" class="page active">
+  
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Welcome | Tournament Zone</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', sans-serif;
+      background: #0d0d0d;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #particles-js {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    .welcome-container {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #fff;
+      padding: 20px;
+    }
+
+    .welcome-container h1 {
+      font-size: 3em;
+      color: #00ffe7;
+      text-shadow: 0 0 10px #00ffe7, 0 0 20px #00ffe7;
+      margin-bottom: 0.5em;
+    }
+
+    .welcome-container p {
+      font-size: 1.2em;
+      margin-bottom: 2em;
+      color: #cccccc;
+    }
+
+    .welcome-btn {
+      background-color: transparent;
+      color: #00ffe7;
+      padding: 12px 30px;
+      font-size: 1em;
+      border: 2px solid #00ffe7;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-shadow: 0 0 5px #00ffe7;
+    }
+
+    
+  </style>
+</head>
+<body>
+  <div id="particles-js"></div>
+
+  <div class="welcome-container">
+    <h1>🏆 Welcome to Tournament Zone!</h1>
+    <p>Join exciting tournaments, win real rewards, and compete with the best.</p>
+    
+  </div>
+
+  <!-- Click sound as Base64-encoded audio -->
+  <audio id="click-sound" preload="auto">
+    <source src="data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA... (trimmed for brevity)" type="audio/mp3">
+  </audio>
+
+  <!-- particles.js script (minified inline version) -->
+  <script>
+    /*! particles.js v2.0.0 by Vincent Garreau */
+    // Minified version of particles.js here ↓ (omitted for brevity due to length)
+    // You can paste the entire minified particles.js code here from:
+    // https://github.com/VincentGarreau/particles.js/blob/master/particles.min.js
+
+    // Since this is too long, use a CDN instead:
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+
+  <!-- particles config (inline) -->
+  <script>
+    particlesJS("particles-js", {
+      "particles": {
+        "number": { "value": 80 },
+        "color": { "value": "#00ffe7" },
+        "shape": { "type": "circle" },
+        "opacity": { "value": 0.5 },
+        "size": { "value": 3 },
+        "line_linked": {
+          "enable": true,
+          "distance": 150,
+          "color": "#00ffe7",
+          "opacity": 0.4,
+          "width": 1
+        },
+        "move": {
+          "enable": true,
+          "speed": 2
+        }
+      },
+      "interactivity": {
+        "events": {
+          "onhover": { "enable": true, "mode": "repulse" },
+          "onclick": { "enable": true, "mode": "push" }
+        },
+        "modes": {
+          "repulse": { "distance": 100 },
+          "push": { "particles_nb": 4 }
+        }
+      },
+      "retina_detect": true
+    });
+
+    function startApp() {
+      const clickSound = document.getElementById("click-sound");
+      clickSound.play();
+      setTimeout(() => {
+        window.location.href = "/login.html"; // Update this to your actual login page
+      }, 300);
+    }
+  </script>
+</body>
+</html>
+
+  
+</div>
+
+<div id="history" class="page">
+  <h2>Match History</h2>
+  <p>No matches played yet.</p>
+</div>
+
+<div id="leaderboard" class="page">
+  <h2>Leaderboard</h2>
+  <p>Top players will be shown here.</p>
+</div>
+
+<div id="profile" class="page">
+  <h2>Your Profile</h2>
+  <p>User info and settings here.</p>
+</div>
+
+<div id="more" class="page">
+  <h2>More</h2>
+  <p>Settings, Help, and More options.</p>
+</div>
+
+<!-- Bottom Navigation -->
+<div class="bottom-nav">
+  <a href="gamezone.html" class="nav-btn" onclick="showPage('gamezone.html',this)"><i>🎮</i>Game Zone</a>
+<a href="history.html" class="nav-btn" onclick="showPage('history.html',this)"><i>📜</i>History</a>
+  
+  <a href="leaderboard.html" class="nav-btn" onclick="showPage('leaderboard.html',this)"><i>🏆</i>Leaderboard</a>
+ <a href="profile.html" class="nav-btn" onclick="showPage('profile.html',this)"><i>👤</i>Profile</a>
+  <a href="more.html" class="nav-btn" onclick="showPage('more.html',this)"><i>⋯</i>More</a>
+  
+</div>
+
+<script>
+  function showPage(id, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    el.classList.add('active');
+  }
+</script>
+
+</body>
+</html>

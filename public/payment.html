@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Payment</title>
+<style>
+  body {
+    background: #121212;
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    text-align: center;
+    padding: 40px 20px;
+  }
+  h2 {
+    font-size: 24px;
+    color: #00faff;
+  }
+  .amount-box {
+    margin: 20px 0;
+    font-size: 20px;
+  }
+  .qr-section {
+    margin-top: 30px;
+  }
+  .qr-section img {
+    width: 220px;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+  }
+  .upi-id {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #ccc;
+  }
+  input[type="text"] {
+    padding: 12px;
+    margin-top: 25px;
+    width: 80%;
+    max-width: 320px;
+    border-radius: 10px;
+    border: none;
+    background: #222;
+    color: #fff;
+    font-size: 16px;
+  }
+  .submit-btn {
+    margin-top: 25px;
+    padding: 14px 30px;
+    background: #00faff;
+    color: #000;
+    border: none;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 30px;
+    cursor: pointer;
+  }
+  .note {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #aaa;
+  }
+</style>
+</head>
+<body>
+
+<h2>🔐 Complete Your Deposit</h2>
+
+<div class="amount-box">
+  Deposit Amount: ₹<span id="amountDisplay">0</span>
+</div>
+
+<div class="qr-section">
+  <img id="qrImage" src="placeholder.png" alt="Scan UPI QR" />
+  <div class="upi-id">or pay to: <strong id="upiId">yourupi@upi</strong></div>
+</div>
+
+<div>
+  <input type="text" id="utr" placeholder="Enter UTR / Transaction ID" />
+</div>
+
+<button class="submit-btn" onclick="submitPayment()">Submit Payment</button>
+
+<div class="note">⚠️ Make sure you have paid via UPI before submitting UTR.</div>
+
+<script>
+  // Get amount from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const amount = parseInt(urlParams.get("amount"));
+  document.getElementById("amountDisplay").innerText = amount || "0";
+
+  const API_CONFIG = "http://localhost:5000/api/wallet/payment-config";
+
+  // Load live QR and UPI from server
+  async function loadPaymentConfig() {
+    try {
+      const res = await fetch(API_CONFIG);
+      const data = await res.json();
+
+      if (data.success && data.config) {
+        const cfg = data.config;
+
+        document.getElementById("upiId").innerText = cfg.upiId || "yourupi@upi";
+        if (cfg.qrImage) {
+          document.getElementById("qrImage").src = "http://localhost:5000/uploads/" + cfg.qrImage;
+        } else {
+          document.getElementById("qrImage").src = "placeholder.png";
+        }
+      } else {
+        document.getElementById("upiId").innerText = "yourupi@upi";
+        document.getElementById("qrImage").src = "placeholder.png";
+      }
+    } catch (err) {
+      console.error("Config fetch error:", err);
+      document.getElementById("upiId").innerText = "yourupi@upi";
+      document.getElementById("qrImage").src = "placeholder.png";
+    }
+  }
+
+  loadPaymentConfig();
+
+  // Submit UTR payment
+  async function submitPayment() {
+    const utr = document.getElementById("utr").value.trim();
+    const token = localStorage.getItem("token");
+
+    if (!utr) return alert("❗ Please enter the UTR/Transaction number.");
+    if (!amount || amount < 300) return alert("❗ Invalid or missing amount.");
+    if (!token) return alert("❗ You're not logged in. Please log in first.");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/wallet/submit-utr", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify({ amount, utr })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert("✅ Payment submitted successfully. Awaiting admin approval.");
+        window.location.href = "profile.html";
+      } else {
+        alert("❌ " + (data.msg || "Something went wrong."));
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
+      alert("❌ Server error. Please try again later.");
+    }
+  }
+</script>
+
+</body>
+</html>

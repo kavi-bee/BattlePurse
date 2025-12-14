@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Tournament Players</title>
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      padding: 20px;
+    }
+    h1, h2 { color: #00faff; }
+    select, button {
+      padding: 8px;
+      margin: 5px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #444;
+      padding: 8px;
+      text-align: center;
+    }
+    th { background: #111; }
+    td img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .paid-yes { color: #0f0; font-weight: bold; }
+    .paid-no { color: #f00; font-weight: bold; }
+    #message { margin-top: 10px; color: #f00; }
+  </style>
+</head>
+<body>
+
+<h1>Admin Panel - Tournament Players</h1>
+
+<div id="tournamentSelectContainer">
+  <label for="tournamentSelect">Select Tournament:</label>
+  <select id="tournamentSelect">
+    <option value="">-- Loading tournaments... --</option>
+  </select>
+  <button onclick="loadTournamentPlayers()">Load Players</button>
+</div>
+
+<h2 id="tournamentName">Tournament Info</h2>
+<p id="tournamentInfo"></p>
+<p id="message"></p>
+
+<table id="playersTable">
+  <thead>
+    <tr>
+      <th>Avatar</th>
+      <th>Name</th>
+      <th>Phone</th>
+      <th>Wallet Balance</th>
+      <th>Game UIDs</th>
+      <th>Paid</th>
+      <th>Joined At</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+const token = localStorage.getItem('token');
+const tournamentSelect = document.getElementById('tournamentSelect');
+let selectedTournamentId = null;
+const API_BASE = 'http://localhost:5000/api/wallet';
+const UPLOADS_BASE = "http://localhost:5000/uploads";
+
+// ✅ Correct, universal local date & time formatter
+function formatDateTime(date, time) {
+  if (!date) return "N/A";
+
+  const dateObj = new Date(date);
+  if (time && !isNaN(Date.parse(date))) {
+    const [hours, minutes] = time.split(":").map(Number);
+    dateObj.setHours(hours || 0);
+    dateObj.setMinutes(minutes || 0);
+  }
+
+  return dateObj.toLocaleString(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+// ---------- Load all tournaments for admin to select ----------
+async function loadTournamentsList() {
+  try {
+    const res = await fetch(`${API_BASE}/tournaments`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const tournaments = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('message').innerText = tournaments.msg || 'Failed to load tournaments';
+      return;
+    }
+
+    tournamentSelect.innerHTML = `<option value="">-- Select a tournament --</option>`;
+    tournaments.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t._id;
+      opt.text = `${t.name} | ${t.game} | ${t.mode}`;
+      tournamentSelect.appendChild(opt);
+    });
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('message').innerText = 'Error loading tournaments';
+  }
+}
+
+// ---------- Load selected tournament players ----------
+async function loadTournamentPlayers() {
+  selectedTournamentId = tournamentSelect.value;
+  if (!selectedTournamentId) {
+    document.getElementById('message').innerText = 'Please select a tournament!';
+    return;
+  }
+  document.getElementById('message').innerText = '';
+
+  try {
+    const res = await fetch(`${API_BASE}/tournaments/${selectedTournamentId}/players`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('message').innerText = data.msg || 'Failed to load tournament';
+      return;
+    }
+
+    // Tournament info
+    document.getElementById('tournamentName').innerText = data.tournamentName;
+    document.getElementById('tournamentInfo').innerText = 
+      `Game: ${data.game} | Mode: ${data.mode} | 
+      Date & Time: ${formatDateTime(data.date, data.time)} |
+      Entry Fee: ₹${data.entryFee} | 
+      Prize Pool: ₹${data.prizePool} | 
+      Max Players: ${data.maxPlayers} | 
+      Total Joined: ${data.totalPlayers}`;
+
+    // Players table
+    const tbody = document.querySelector('#playersTable tbody');
+    tbody.innerHTML = '';
+
+    if (!data.players.length) {
+      tbody.innerHTML = `<tr><td colspan="7">No players joined yet.</td></tr>`;
+      return;
+    }
+
+    data.players.forEach(player => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><img src="${player.avatarUrl || 'https://via.placeholder.com/40'}" alt="Avatar"></td>
+        <td>${player.name}</td>
+        <td>${player.phone}</td>
+        <td>₹${player.wallet}</td>
+        
+        <td>${player.gameUIDs.length ? player.gameUIDs.join(', ') : '—'}</td>
+
+        
+        <td class="${player.paid ? 'paid-yes' : 'paid-no'}">${player.paid ? 'Yes' : 'No'}</td>
+        <td>${player.joinedAt ? new Date(player.joinedAt).toLocaleString() : 'N/A'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('message').innerText = 'Error loading players';
+  }
+}
+
+// Initialize
+loadTournamentsList();
+</script>
+
+</body>
+</html>

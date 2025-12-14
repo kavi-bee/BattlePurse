@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Match Details</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      padding: 25px;
+    }
+
+    h2 {
+      color: #00faff;
+      margin-top: 30px;
+      border-bottom: 2px solid #00faff;
+      padding-bottom: 8px;
+    }
+
+    .section {
+      margin-top: 20px;
+      background: #141414;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 250, 255, 0.2);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th, td {
+      border: 1px solid #333;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background: #1c1c1c;
+      color: #00faff;
+    }
+
+    tr:nth-child(even) {
+      background: #1a1a1a;
+    }
+
+    button {
+      background: #00faff;
+      color: #000;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background: #00bcd4;
+    }
+
+    .pair-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .empty-msg {
+      text-align: center;
+      padding: 15px;
+      color: #999;
+    }
+
+    .paired-box {
+      border: 1px solid #00faff;
+      margin: 10px 0;
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .paired-title {
+      font-size: 16px;
+      color: #00faff;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>⚙️ Admin Match Control Panel</h1>
+
+  <!-- All Joined Members -->
+  <div class="section">
+    <h2>👥 All Joined Members</h2>
+    <table id="joinedTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>UID</th>
+          <th>Game</th>
+          <th>Mode</th>
+          <th>Type</th>
+          <th>Entry Fee</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- Unpaired Members -->
+  <div class="section">
+    <h2>🔵 Unpaired Members</h2>
+    <div class="pair-section">
+      <button id="pairSelectedBtn">➕ Pair Selected Members</button>
+    </div>
+    <table id="unpairedTable">
+      <thead>
+        <tr>
+          <th>Select</th>
+          <th>Name</th>
+          <th>UID</th>
+          <th>Game</th>
+          <th>Mode</th>
+          <th>Type</th>
+          <th>Entry Fee</th>
+          <th>Wallet</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- Paired Members -->
+  <div class="section">
+    <h2>🟢 Paired Matches</h2>
+    <div id="pairedContainer"></div>
+  </div>
+
+  <script>
+    const joinedTableBody = document.querySelector("#joinedTable tbody");
+    const unpairedTableBody = document.querySelector("#unpairedTable tbody");
+    const pairedContainer = document.querySelector("#pairedContainer");
+    const pairSelectedBtn = document.getElementById("pairSelectedBtn");
+
+    const API_BASE = "http://localhost:5000/api/wallet"; // update if needed
+
+    async function fetchData() {
+      await loadJoined();
+      await loadUnpaired();
+      await loadPaired();
+    }
+
+    /* ----------------------- Load All Joined Members ---------------------- */
+    async function loadJoined() {
+      try {
+        const res = await fetch(`${API_BASE}/joined`);
+        const data = await res.json();
+        joinedTableBody.innerHTML = "";
+
+        if (!data.data.length) {
+          joinedTableBody.innerHTML = `<tr><td colspan="8" class="empty-msg">No joined members found</td></tr>`;
+          return;
+        }
+
+        data.data.forEach((m, i) => {
+          joinedTableBody.innerHTML += `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${m.name}</td>
+              <td>${m.uid}</td>
+              <td>${m.game}</td>
+              <td>${m.mode}</td>
+              <td>${m.type}</td>
+              <td>${m.entryFee}</td>
+              <td>${m.status}</td>
+            </tr>`;
+        });
+      } catch (err) {
+        console.error("Error loading joined:", err);
+      }
+    }
+
+    /* ----------------------- Load Unpaired Members ----------------------- */
+    async function loadUnpaired() {
+      try {
+        const res = await fetch(`${API_BASE}/joined/unpaired`);
+        const data = await res.json();
+        unpairedTableBody.innerHTML = "";
+
+        if (!data.data.length) {
+          unpairedTableBody.innerHTML = `<tr><td colspan="8" class="empty-msg">No unpaired members found</td></tr>`;
+          return;
+        }
+
+        data.data.forEach((m) => {
+          unpairedTableBody.innerHTML += `
+            <tr>
+              <td><input type="checkbox" class="pairSelect" data-uid="${m.uid}" data-userid="${m.userId}" data-name="${m.name}" data-game="${m.game}" data-mode="${m.mode}" data-type="${m.type}" data-entry="${m.entryFee}" /></td>
+              <td>${m.name}</td>
+              <td>${m.uid}</td>
+              <td>${m.game}</td>
+              <td>${m.mode}</td>
+              <td>${m.type}</td>
+              <td>${m.entryFee}</td>
+              <td>${m.wallet}</td>
+            </tr>`;
+        });
+      } catch (err) {
+        console.error("Error loading unpaired:", err);
+      }
+    }
+
+    /* ----------------------- Load Paired Members ------------------------- */
+    async function loadPaired() {
+      try {
+        const res = await fetch(`${API_BASE}/joined/paired`);
+        const data = await res.json();
+        pairedContainer.innerHTML = "";
+
+        if (!data.data.length) {
+          pairedContainer.innerHTML = `<div class="empty-msg">No paired matches found</div>`;
+          return;
+        }
+
+        data.data.forEach((match, i) => {
+          let playersHTML = match.players
+            .map(
+              (p) =>
+                `<div>👤 <b>${p.name}</b> (${p.uid}) - ₹${p.wallet}</div>`
+            )
+            .join("");
+
+          pairedContainer.innerHTML += `
+            <div class="paired-box">
+              <div class="paired-title">Match #${i + 1} | ${match.players[0]?.game || "Unknown Game"}</div>
+              ${playersHTML}
+            </div>`;
+        });
+      } catch (err) {
+        console.error("Error loading paired:", err);
+      }
+    }
+
+    /* ----------------------- Pair Selected Members ----------------------- */
+    // ✅ PAIR SELECTED PLAYERS
+pairSelectedBtn.addEventListener("click", async () => {
+
+  const selected = [...document.querySelectorAll(".pairSelect:checked")];
+
+  if (selected.length === 0) {
+    alert("Please select members to pair!");
+    return;
+  }
+
+  const matchId = selected[0].dataset.matchid; // <- ADD THIS
+
+  const matchType = selected[0].dataset.type;
+  const typeMap = { "1v1": 2, "2v2": 4, "3v3": 6, "4v4": 8 };
+  const requiredPlayers = typeMap[matchType] || 2;
+
+  if (selected.length !== requiredPlayers) {
+    alert(`⚠ You must select exactly ${requiredPlayers} players for ${matchType} matches.`);
+    return;
+  }
+
+  // build players array correctly
+  const players = selected.map(chk => ({
+    userId: chk.dataset.userid,
+    name: chk.dataset.name,
+    uid: chk.dataset.uid,
+  }));
+
+  try {
+    const res = await fetch(`${API_BASE}/pair`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        matchId,
+        players
+      }),
+    });
+
+    const result = await res.json();
+
+    if (result.success) {
+      alert("✅ Members paired successfully!");
+      location.reload(); // justReload
+    } else {
+      alert("❌ Failed: " + result.msg);
+    }
+
+  } catch (err) {
+    console.error("Error pairing:", err);
+    alert("Server error pairing members.");
+  }
+});
+
+    fetchData();
+  </script>
+</body>
+</html>

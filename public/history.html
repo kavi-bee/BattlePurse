@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Match History</title>
+
+<style>
+:root{
+  --bg:#121212;
+  --card:#1e1e1e;
+  --line:#333;
+  --accent:#00faff;
+  --win:#00ff88;
+  --loss:#ff5555;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Poppins,system-ui,-apple-system,sans-serif;
+  background:var(--bg);
+  color:#fff;
+}
+
+/* HEADER */
+header{
+  position:sticky;
+  top:0;
+  z-index:10;
+  background:var(--card);
+  padding:14px;
+  text-align:center;
+  font-size:18px;
+  font-weight:600;
+  border-bottom:1px solid var(--line);
+}
+
+/* FILTERS */
+.filters{
+  position:sticky;
+  top:52px;
+  z-index:9;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:10px;
+  padding:12px;
+  background:#1a1a1a;
+  border-bottom:1px solid var(--line);
+}
+
+.filters select,
+.filters input{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  background:#000;
+  color:#fff;
+  border:1px solid var(--accent);
+  font-size:13px;
+}
+
+/* TABLE */
+.history-wrap{
+  padding:10px;
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  min-width:600px;
+  border-collapse:collapse;
+}
+
+th,td{
+  padding:12px 8px;
+  text-align:center;
+  border-bottom:1px solid var(--line);
+  font-size:13px;
+}
+
+th{
+  background:rgba(0,250,255,.1);
+  color:var(--accent);
+  font-weight:600;
+}
+
+.win{color:var(--win);font-weight:600}
+.loss{color:var(--loss);font-weight:600}
+
+/* PAGINATION */
+.pagination{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  padding:14px 0 80px;
+}
+
+.page-btn{
+  background:var(--accent);
+  border:none;
+  color:#000;
+  padding:8px 18px;
+  border-radius:8px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+/* FOOTER NAV */
+footer{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:var(--card);
+  display:flex;
+  justify-content:space-around;
+  padding:8px 0;
+  border-top:1px solid var(--line);
+}
+
+.nav-btn{
+  text-align:center;
+  font-size:12px;
+  color:#aaa;
+}
+
+.nav-btn i{
+  display:block;
+  font-size:18px;
+  margin-bottom:2px;
+}
+
+.nav-btn.active{color:var(--accent)}
+
+/* DESKTOP */
+@media(min-width:900px){
+  header{font-size:20px}
+  th,td{font-size:14px}
+  .filters{grid-template-columns:repeat(5,1fr)}
+}
+</style>
+</head>
+
+<body>
+
+<header>📜 Match History</header>
+
+<div class="filters">
+  <select id="gameFilter">
+    <option value="">All Games</option>
+    <option value="BGMI">BGMI</option>
+    <option value="Free Fire">Free Fire</option>
+    <option value="Ludo">Ludo</option>
+    <option value="8 Ball Pool">8 Ball Pool</option>
+    <option value="Carrom">Carrom</option>
+  </select>
+
+  <input type="date" id="fromDate">
+  <input type="date" id="toDate">
+
+  <select id="resultFilter">
+    <option value="">All Results</option>
+    <option value="win">Win</option>
+    <option value="loss">Loss</option>
+  </select>
+</div>
+
+<div class="history-wrap">
+<table>
+<thead>
+<tr>
+  <th>ID / Name</th>
+  <th>Game</th>
+  <th>Date</th>
+  <th>Result</th>
+  <th>Winnings</th>
+</tr>
+</thead>
+<tbody id="matchHistory">
+<tr><td colspan="5">Loading...</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="pagination">
+  <button class="page-btn" onclick="prevPage()">Previous</button>
+  <button class="page-btn" onclick="nextPage()">Next</button>
+</div>
+
+<footer>
+  <div class="nav-btn" onclick="location.href='gamezone.html'"><i>🎮</i>Game</div>
+  <div class="nav-btn active"><i>📜</i>History</div>
+  <div class="nav-btn" onclick="location.href='leaderboard.html'"><i>🏆</i>Leaderboard</div>
+  <div class="nav-btn" onclick="location.href='profile.html'"><i>👤</i>Profile</div>
+  <div class="nav-btn" onclick="location.href='more.html'"><i>⋯</i>More</div>
+</footer>
+
+<script>
+const tableBody = document.getElementById("matchHistory");
+const gameFilter = document.getElementById("gameFilter");
+const resultFilter = document.getElementById("resultFilter");
+const fromDate = document.getElementById("fromDate");
+const toDate = document.getElementById("toDate");
+
+let allHistory=[], filteredHistory=[], currentPage=1;
+const pageSize=10;
+
+async function loadHistory(){
+  try{
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:5000/api/wallet/history",{
+      headers:{Authorization:"Bearer "+token}
+    });
+    const data = await res.json();
+    allHistory = data.success ? data.history : [];
+    filteredHistory=[...allHistory];
+    renderPage(1);
+  }catch{
+    tableBody.innerHTML='<tr><td colspan="5">Failed to load history</td></tr>';
+  }
+}
+
+function renderPage(p){
+  currentPage=p;
+  const start=(p-1)*pageSize;
+  renderTable(filteredHistory.slice(start,start+pageSize));
+}
+
+function renderTable(data){
+  tableBody.innerHTML="";
+  if(!data.length){
+    tableBody.innerHTML='<tr><td colspan="5">No records found</td></tr>';
+    return;
+  }
+  data.forEach(i=>{
+    const date=new Date(i.createdAt||i.date||i.declaredAt).toLocaleDateString();
+    const cls=i.result==="win"?"win":"loss";
+    const res=i.result==="win"&&i.position?`#${i.position}`:i.result;
+    tableBody.innerHTML+=`
+      <tr>
+        <td>${i.matchNumber||i.tournamentName}</td>
+        <td>${i.game}</td>
+        <td>${date}</td>
+        <td class="${cls}">${res}</td>
+        <td>₹${i.prize||0}</td>
+      </tr>`;
+  });
+}
+
+function applyFilters(){
+  const g=gameFilter.value;
+  const r=resultFilter.value;
+  const f=fromDate.value?new Date(fromDate.value):null;
+  const t=toDate.value?new Date(toDate.value):null;
+
+  filteredHistory=allHistory.filter(h=>{
+    const d=new Date(h.createdAt||h.date||h.declaredAt);
+    return(!g||h.game===g)&&(!r||h.result===r)&&(!f||d>=f)&&(!t||d<=t);
+  });
+  renderPage(1);
+}
+
+function prevPage(){ if(currentPage>1) renderPage(currentPage-1); }
+function nextPage(){ if(currentPage*pageSize<filteredHistory.length) renderPage(currentPage+1); }
+
+[gameFilter,resultFilter,fromDate,toDate].forEach(el=>el.addEventListener("change",applyFilters));
+
+loadHistory();
+</script>
+</body>
+</html>

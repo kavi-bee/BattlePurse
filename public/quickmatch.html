@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quick Match</title>
+<style>
+  body { background: #0a0a0a; color: #fff; font-family: 'Poppins', sans-serif; padding: 20px; text-align: center; }
+  h1 { color: #00faff; margin-bottom: 20px; }
+  .match-info { background: #121212; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
+  .match-info p { margin: 10px 0; }
+  button.join-btn { background-color: #00faff; color: #000; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+  button.join-btn:hover { background-color: #00d1ff; }
+  button.join-btn:disabled { background-color: #555; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<h1>🎮 Join Quick Match</h1>
+
+<div class="match-info" id="matchInfo">
+  <p>Loading match details...</p>
+</div>
+
+<button class="join-btn" id="joinBtn" onclick="joinMatch()" disabled>Join Match</button>
+
+<script>
+const API_BASE = "http://localhost:5000/api/wallet";
+let matchNumber = null;
+let matchDetails = null;
+
+// Get match number from URL
+const urlParams = new URLSearchParams(window.location.search);
+matchNumber = urlParams.get("match");
+if (!matchNumber) {
+  alert("No match number found in URL");
+}
+
+// Fetch match details
+async function loadMatch() {
+  if (!matchNumber) return;
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Please login first");
+    window.location.href = "login.html";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/quickmatch/details/${matchNumber}`, {
+      headers: { "Authorization": `Bearer ${token}` } // ✅ Corrected
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.msg || "Match not found");
+
+    matchDetails = data;
+    displayMatchDetails();
+  } catch (err) {
+    console.error(err);
+    alert("Server error while fetching match");
+  }
+}
+
+// Display match info
+function displayMatchDetails() {
+  const infoDiv = document.getElementById("matchInfo");
+  const playersCount = matchDetails.players?.length || 0;
+
+  infoDiv.innerHTML = `
+    <p><strong>Match No:</strong> ${matchDetails.matchNumber}</p>
+    <p><strong>Mode:</strong> ${matchDetails.mode}</p>
+    <p><strong>Entry Fee:</strong> ₹${matchDetails.entryFee}</p>
+    <p><strong>Current Players Joined:</strong> ${playersCount}</p>
+    <p><strong>Status:</strong> ${matchDetails.status}</p>
+  `;
+
+  // Enable join button if match is joinable
+  document.getElementById("joinBtn").disabled = !(matchDetails.status === "waiting" || matchDetails.status === "pending");
+}
+
+// Join match
+async function joinMatch() {
+  if (!matchDetails) return;
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Please login first");
+    window.location.href = "login.html";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/quickmatch/join`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}` // ✅ Corrected
+      },
+      body: JSON.stringify({
+        matchType: matchDetails.mode,
+        entryPrice: matchDetails.entryFee
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) return alert(data.msg || "Failed to join match");
+
+    alert(`✅ Joined Match Successfully!\nMatch No: ${data.match.matchNumber}`);
+    window.location.href = `joined.html?match=${data.match.matchNumber}`;
+  } catch (err) {
+    console.error(err);
+    alert("Server error while joining match");
+  }
+}
+
+// Initial load
+loadMatch();
+</script>
+</body>
+</html>

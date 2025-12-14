@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contact Us</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #121212;
+      color: #fff;
+    }
+
+    header {
+      background: #1e1e1e;
+      padding: 15px 20px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #00faff;
+      border-bottom: 1px solid #333;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 20px auto;
+      padding: 20px;
+    }
+
+    h2 {
+      color: #00faff;
+      margin-bottom: 10px;
+    }
+
+    .info-box {
+      background: #1c1c1c;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 10px #00faff55;
+    }
+
+    .info-box p {
+      margin: 8px 0;
+      font-size: 14px;
+    }
+
+    a {
+      color: #00faff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: #00faff;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: #1e1e1e;
+      color: #fff;
+      font-size: 14px;
+      box-shadow: inset 0 0 6px #00faff44;
+    }
+
+    textarea {
+      resize: vertical;
+      height: 100px;
+    }
+
+    .button {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      background: #00faff;
+      color: #000;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .button:hover {
+      background: #00c8df;
+    }
+  </style>
+</head>
+<body>
+
+<header>Contact Us</header>
+
+<div class="container">
+
+  <h2>📞 Contact Information</h2>
+  <div class="info-box">
+    <p><strong>📧 Email:</strong> <a href="mailto:support@example.com">support@example.com</a></p>
+    <p><strong>📱 Phone:</strong> +91 98765 43210</p>
+    <p><strong>💬 WhatsApp:</strong> <a href="https://wa.me/919876543210" target="_blank">Chat on WhatsApp</a></p>
+    <p><strong>📨 Telegram:</strong> <a href="https://t.me/YourSupportBot" target="_blank">@YourSupportBot</a></p>
+    <p><strong>🌐 Website:</strong> <a href="https://yourwebsite.com" target="_blank">www.yourwebsite.com</a></p>
+  </div>
+
+  <h2>📩 Send Us a Message</h2>
+  <div class="form-group">
+    <label for="name">Your Name</label>
+    <input type="text" id="name" placeholder="Enter your name" />
+  </div>
+
+  <div class="form-group">
+    <label for="email">Your Email</label>
+    <input type="email" id="email" placeholder="Enter your email" />
+  </div>
+
+  <div class="form-group">
+    <label for="message">Your Message</label>
+    <textarea id="message" placeholder="Write your message..."></textarea>
+  </div>
+
+  <button class="button" onclick="submitSupport()">📤 Submit</button>
+
+</div>
+
+<script>
+  function submitSupport() {
+    const name = document.getElementById("name").value;
+    const mobile = document.getElementById("email").value;
+    const message = document.getElementById("message").value;
+
+    if (!name || !email || !message) {
+      return alert("All fields are required.");
+    }
+
+    fetch("http://localhost:5000/api/wallet/supports/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name,email, message })
+    })
+      .then(res => res.json())
+      .then(data => {
+        alert("✅ " + (data.msg || "Message sent!"));
+        // Optionally clear form
+        document.getElementById("name").value = "";
+        document.getElementById("email").value = "";
+        document.getElementById("message").value = "";
+      })
+      .catch(err => {
+        console.error(err);
+        alert("❌ Failed to send message.");
+      });
+  }
+</script>
+
+
+</body>
+</html>

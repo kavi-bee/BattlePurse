@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>More</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #121212;
+      color: #fff;
+    }
+
+    header {
+      background: #1e1e1e;
+      padding: 15px 20px;
+      font-size: 20px;
+      font-weight: 600;
+      border-bottom: 1px solid #333;
+    }
+
+    .more-options {
+      padding: 20px;
+    }
+
+    .option {
+      background: #1e1e1e;
+      border-radius: 10px;
+      padding: 15px 20px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0,255,255,0.05);
+      transition: background 0.2s ease;
+    }
+
+    .option:hover {
+      background: #2a2a2a;
+    }
+
+    .option span {
+      font-size: 16px;
+    }
+
+    .option i {
+      color: #00faff;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #1e1e1e;
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+      border-top: 1px solid #333;
+    }
+
+    .nav-btn {
+      color: #aaa;
+      text-align: center;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .nav-btn i {
+      font-size: 20px;
+      display: block;
+    }
+
+    .nav-btn.active {
+      color: #00faff;
+    }
+  </style>
+</head>
+<body>
+
+<header>⋯ More Options</header>
+
+<div class="more-options">
+    <a href="setting.html" class="option" onclick="showPage('setting.html',this)"><i>⚙️</i>Settings</a>
+  <a href="help&support.html" class="option" onclick="showPage('setting.html',this)"><i>❓</i>Help & Support</a>
+  <a href="contactus.html" class="option" onclick="showPage('setting.html',this)"><i>📩</i>Contact Us</a>
+  <a href="logout.html" class="option" onclick="showPage('setting.html',this)"><i>🚪</i>Logout</a>
+  
+</div>
+
+<footer>
+  <div class="nav-btn" onclick="location.href='gamezone.html'"><i>🎮</i>Game</div>
+  <div class="nav-btn" onclick="location.href='history.html'"><i>📜</i>History</div>
+  <div class="nav-btn" onclick="location.href='leaderboard.html'"><i>🏆</i>Leaderboard</div>
+  <div class="nav-btn" onclick="location.href='profile.html'"><i>👤</i>Profile</div>
+  <div class="nav-btn active"><i>⋯</i>More</div>
+</footer>
+
+</body>
+</html>

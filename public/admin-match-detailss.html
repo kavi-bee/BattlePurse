@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin - Match Room Details</title>
+<style>
+  :root{--bg:#0b0b0b;--card:#0f1724;--muted:#9ca3af;--accent:#6366f1;--success:#10b981;}
+  body{font-family:'Poppins',sans-serif;background:var(--bg);color:#e6eef8;margin:0;padding:20px;}
+  main{max-width:920px;margin:18px auto;background:#071027;border-radius:10px;padding:18px;box-shadow:0 8px 30px rgba(0,0,0,0.6);}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  h1{font-size:20px;margin:0;color:var(--accent)}
+  .meta{color:var(--muted);font-size:13px}
+  .card{background:var(--card);padding:14px;border-radius:10px;margin-bottom:12px;border:1px solid rgba(99,102,241,0.08)}
+  label{display:block;margin-top:10px;font-size:13px;color:#dbeafe}
+  input,textarea,select{width:100%;padding:9px;margin-top:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.05);background:#071427;color:#e6eef8;box-sizing:border-box}
+  textarea{resize:vertical;min-height:80px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .col{flex:1;min-width:180px}
+  button{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;margin-top:12px;font-weight:600}
+  button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.03);font-size:13px;text-align:left}
+  th{color:var(--accent);font-weight:700}
+  .hint{color:var(--muted);font-size:13px;margin-top:8px}
+  .result{margin-top:12px;padding:12px;border-radius:8px;background:#062028;color:#e6f7ee}
+  .error{background:#2b0b0b;color:#ffd6d6}
+  .players-count{font-weight:700;color:#fff}
+  .small {font-size:12px;color:var(--muted)}
+  @media(max-width:700px){ .row{flex-direction:column} }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Admin — Publish Room</h1>
+      <div class="meta">Use this page to publish room details for a paired match.</div>
+    </div>
+    <div class="small">Match ID: <span id="shortMatchId" class="small"></span></div>
+  </header>
+
+  <section id="matchSection" class="card">
+    <div id="loading">Loading match details…</div>
+
+    <div id="matchContent" style="display:none;">
+      <div class="row" style="align-items:center;">
+        <div class="col">
+          <div><strong>Game:</strong> <span id="gameText"></span></div>
+          <div class="small"><strong>Mode:</strong> <span id="modeText"></span></div>
+        </div>
+        <div class="col">
+          <div><strong>Type:</strong> <span id="typeText"></span></div>
+          <div class="small"><strong>Entry Fee:</strong> ₹<span id="feeText"></span></div>
+        </div>
+        <div class="col" style="text-align:right;">
+          <div class="players-count">Players: <span id="playersCount"></span></div>
+          <div class="small">Status: <span id="statusText"></span></div>
+        </div>
+      </div>
+
+      <hr style="border:0;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
+
+      <div>
+        <strong>Players</strong>
+        <div class="hint">Shows all players in this match (name, phone, UID, userId).</div>
+
+        <div style="overflow:auto;margin-top:8px;">
+          <table id="playersTable" role="table">
+            <thead>
+              <tr><th>#</th><th>Name</th><th>Phone</th><th>UID</th><th>User ID</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Room Details to Publish</h3>
+
+    <label>Room ID</label>
+    <input id="roomId" type="text" placeholder="e.g. 4598732">
+
+    <label>Room Password / Code</label>
+    <input id="roomPass" type="text" placeholder="e.g. XYT9">
+
+    <div class="row">
+  <div class="col">
+    <label>Start Time</label>
+    <input id="startTime" type="datetime-local">
+  </div>
+</div>
+
+    <label>Custom Message (optional)</label>
+    <textarea id="message" placeholder="Any custom note for players (e.g. server details, rules)"></textarea>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+      <button id="publishBtn">Save & Publish Room</button>
+      <button id="copySummary" class="secondary">Copy Room Summary</button>
+      <button id="backBtn" class="secondary">Back to Admin Matches</button>
+    </div>
+
+    <div id="responseBox" style="display:none;margin-top:12px;"></div>
+  </section>
+</main>
+
+<script>
+(function(){
+  const API_BASE = "http://localhost:5000/api/wallet";
+  const params = new URLSearchParams(window.location.search);
+  const matchId = params.get('matchId');
+
+  const el = {
+    loading: document.getElementById('loading'),
+    matchContent: document.getElementById('matchContent'),
+    gameText: document.getElementById('gameText'),
+    modeText: document.getElementById('modeText'),
+    typeText: document.getElementById('typeText'),
+    feeText: document.getElementById('feeText'),
+    statusText: document.getElementById('statusText'),
+    shortMatchId: document.getElementById('shortMatchId'),
+    playersCount: document.getElementById('playersCount'),
+    playersTableBody: document.querySelector('#playersTable tbody'),
+    roomId: document.getElementById('roomId'),
+    roomPass: document.getElementById('roomPass'),
+    startTime: document.getElementById('startTime'),
+    message: document.getElementById('message'),
+    publishBtn: document.getElementById('publishBtn'),
+    responseBox: document.getElementById('responseBox'),
+    copySummary: document.getElementById('copySummary'),
+    backBtn: document.getElementById('backBtn')
+  };
+
+  function escapeHtml(str){
+    if(str==null) return '';
+    return String(str)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'","&#39;");
+  }
+
+  if(!matchId){
+    el.loading.textContent = 'Missing matchId in URL.';
+    return;
+  }
+  el.shortMatchId.textContent = matchId;
+
+  // ============================
+  // ⭐ LOAD MATCH (UPDATED)
+  // ============================
+  async function loadMatch(){
+    try{
+      el.loading.style.display = '';
+      el.matchContent.style.display = 'none';
+
+      const adminToken = localStorage.getItem("token");
+      if(!adminToken){
+        el.loading.textContent = "Admin login required (token missing).";
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/pairs/${matchId}`, {
+        headers: { "Authorization": "Bearer " + adminToken }
+      });
+
+      const json = await res.json();
+
+      if(!json.success){
+        el.loading.textContent = json.msg || "Match not found";
+        return;
+      }
+
+      // ⭐ backend returns full data
+      el.gameText.textContent = json.game || "-";
+      el.modeText.textContent = json.mode || "-";
+      el.typeText.textContent = json.type || "-";
+      el.feeText.textContent = json.entryFee ?? "-";
+      el.statusText.textContent = json.status || "-";
+
+      const players = json.players || [];
+      el.playersCount.textContent = players.length;
+
+      // ⭐ Table Render (includes map + WhatsApp click)
+      el.playersTableBody.innerHTML = players.map((p, idx) => {
+        return `
+          <tr>
+            <td>${idx+1}</td>
+            <td>${escapeHtml(p.name)}</td>
+            <td>
+              <a href="https://wa.me/${p.phone}" target="_blank" style="color:#4ade80;">
+                ${escapeHtml(p.phone)}
+              </a>
+            </td>
+            <td>${escapeHtml(p.uid || "-")}</td>
+            <td>${escapeHtml(p.userId || "-")}</td>
+          </tr>
+        `;
+      }).join('');
+
+      el.loading.style.display = 'none';
+      el.matchContent.style.display = '';
+
+    } catch(err){
+      console.error("Load match error →", err);
+      el.loading.textContent = "Server error (check console).";
+    }
+  }
+
+  // ============================
+  // ⭐ PUBLISH ROOM
+  // ============================
+  async function publishRoom(){
+    const roomId = el.roomId.value.trim();
+    const roomPass = el.roomPass.value.trim();
+    const start = el.startTime.value;
+    const msg = el.message.value.trim();
+
+    if(!roomId || !roomPass || !start){
+      alert("Fill Room ID, Password & Start Time.");
+      return;
+    }
+
+    el.publishBtn.disabled = true;
+
+    try{
+      const adminToken = localStorage.getItem("token");
+      if(!adminToken){
+        alert("Admin token missing");
+        el.publishBtn.disabled = false;
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/admin/quickmatch/add-room`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + adminToken
+        },
+        body: JSON.stringify({
+          matchId,
+          roomId,
+          roomPassword: roomPass,
+          startTime: new Date(start).toISOString(),
+          message: msg
+        })
+      });
+
+      const json = await res.json();
+
+      if(!res.ok){
+        el.responseBox.style.display = '';
+        el.responseBox.className = "result error";
+        el.responseBox.innerHTML = `<strong>Error:</strong> ${escapeHtml(json.msg)}`;
+        el.publishBtn.disabled = false;
+        return;
+      }
+
+      el.responseBox.style.display = '';
+      el.responseBox.className = "result";
+      el.responseBox.innerHTML = `<strong>Success:</strong> Room Published`;
+
+      await loadMatch();
+
+    } catch(err){
+      console.error("Publish error →", err);
+      el.responseBox.style.display = '';
+      el.responseBox.className = "result error";
+      el.responseBox.textContent = "Network/server error";
+    }
+
+    el.publishBtn.disabled = false;
+  }
+
+  // ============================
+  // ⭐ COPY SUMMARY
+  // ============================
+  function copySummary(){
+    const players = Array.from(document.querySelectorAll("#playersTable tbody tr"))
+      .map(tr => tr.innerText)
+      .join("\n");
+
+    const text = `
+Match ID: ${matchId}
+Game: ${el.gameText.textContent}
+Mode: ${el.modeText.textContent}
+Room: ${el.roomId.value}
+Password: ${el.roomPass.value}
+Start: ${new Date(el.startTime.value).toLocaleString()}
+Players:
+${players}
+Message: ${el.message.value}
+`;
+
+    navigator.clipboard.writeText(text)
+      .then(()=> alert("Copied!"))
+      .catch(()=> alert("Copy failed"));
+  }
+
+  // ============================
+  // ⭐ BACK
+  // ============================
+  function goBack(){
+    window.location.href = "admin-matches.html";
+  }
+
+  el.publishBtn.addEventListener("click", publishRoom);
+  el.copySummary.addEventListener("click", copySummary);
+  el.backBtn.addEventListener("click", goBack);
+
+  // Load instantly
+  loadMatch();
+
+})();
+</script>
+
+</body>
+</html>

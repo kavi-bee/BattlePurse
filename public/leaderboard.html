@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leaderboard</title>
+
+<style>
+
+  body {
+    background: #111;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  h1 {
+    color: #00eaff;
+    text-align: center;
+    margin: 15px 0;
+    font-size: 1.8rem;
+  }
+
+  .filters {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0;
+    padding: 0 10px;
+  }
+
+  select, input {
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #00eaff;
+    background: #1a1a1a;
+    color: #00eaff;
+    font-size: 0.9rem;
+    min-width: 120px;
+  }
+
+  .table-container {
+    flex: 1;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto 80px;
+    background: #1a1a1a;
+    padding: 15px;
+    border-radius: 10px;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+  }
+
+  table th, table td {
+    padding: 10px;
+    border-bottom: 1px solid #333;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  table th {
+    color: #00eaff;
+  }
+
+  .rank { font-weight: bold; }
+  .gold { color: gold; }
+  .silver { color: silver; }
+  .bronze { color: #cd7f32; }
+
+  .earnings { color: #00ff88; }
+  .spent { color: #ff5555; }
+  .netWin { color: #ff8800; }
+
+  .message {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 0.95rem;
+    color: #ff4444;
+  }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: #1a1a1a;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1px solid #333;
+    z-index: 100;
+  }
+
+  .bottom-nav .nav-btn {
+    color: #aaa;
+    text-align: center;
+    cursor: pointer;
+    flex: 1;
+    font-size: 12px;
+  }
+
+  .bottom-nav .nav-btn i {
+    display: block;
+    font-size: 20px;
+    margin-bottom: 2px;
+  }
+
+  .bottom-nav .nav-btn.active {
+    color: #00eaff;
+  }
+
+</style>
+</head>
+<body>
+
+<h1>🏆 Leaderboard</h1>
+
+<div class="filters">
+  <select id="gameFilter">
+    <option value="">All Games</option>
+    <option value="Free Fire">Free Fire</option>
+    <option value="BGMI">BGMI</option>
+    <option value="Ludo">Ludo</option>
+    <option value="8 Ball Pool">8 Ball Pool</option>
+    <option value="Carrom">Carrom</option>
+    <option value="Candy Crush">Candy Crush</option>
+  </select>
+
+  <input type="date" id="dateFilter" />
+</div>
+
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Player</th>
+        <th>Game</th>
+        <th>Total Winnings</th>
+        <th>Total Spent</th>
+        <th>Net Win</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboardBody">
+      <tr><td colspan="6">Loading leaderboard...</td></tr>
+    </tbody>
+  </table>
+
+  <div id="message" class="message"></div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-btn" onclick="location.href='gamezone.html'"><i>🎮</i><span>Game</span></div>
+  <div class="nav-btn" onclick="location.href='history.html'"><i>📜</i><span>History</span></div>
+  <div class="nav-btn active" onclick="location.href='leaderboard.html'"><i>🏆</i><span>Leaderboard</span></div>
+  <div class="nav-btn" onclick="location.href='profile.html'"><i>👤</i><span>Profile</span></div>
+  <div class="nav-btn" onclick="location.href='more.html'"><i>⋯</i><span>More</span></div>
+</div>
+
+<script>
+const token = localStorage.getItem("token");
+const leaderboardBody = document.getElementById("leaderboardBody");
+const gameFilter = document.getElementById("gameFilter");
+const dateFilter = document.getElementById("dateFilter");
+
+if (!token) {
+  leaderboardBody.innerHTML = `<tr><td colspan="6">Please login first.</td></tr>`;
+} else {
+  loadLeaderboard();
+}
+
+gameFilter.addEventListener("change", loadLeaderboard);
+dateFilter.addEventListener("change", loadLeaderboard);
+
+async function loadLeaderboard() {
+  try {
+    const game = gameFilter.value;
+    const date = dateFilter.value;
+
+    const params = new URLSearchParams();
+    if (game) params.append("game", game);
+    if (date) params.append("date", date);
+
+    const res = await fetch(`http://localhost:5000/api/wallet/leaderboard?${params}`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+
+    const data = await res.json();
+
+    leaderboardBody.innerHTML = "";
+
+    if (!data.success || !data.leaderboard || data.leaderboard.length === 0) {
+      leaderboardBody.innerHTML = `<tr><td colspan="6">No players found.</td></tr>`;
+      return;
+    }
+
+    const top = data.leaderboard.slice(0, 50);
+
+    top.forEach((player, idx) => {
+      const rankClass = idx === 0 ? "gold" : idx === 1 ? "silver" : idx === 2 ? "bronze" : "";
+      const icon = idx === 0 ? "🏆" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "";
+
+      leaderboardBody.innerHTML += `
+        <tr>
+          <td class="rank ${rankClass}">${icon} #${idx+1}</td>
+          <td>${player.name}</td>
+          <td>${player.game || "All Games"}</td>
+          <td class="earnings">₹${player.totalWinnings}</td>
+          <td class="spent">₹${player.totalSpent}</td>
+          <td class="netWin">₹${player.netWin}</td>
+        </tr>
+      `;
+    });
+
+  } catch (err) {
+    leaderboardBody.innerHTML = `<tr><td colspan="6">Failed to load leaderboard.</td></tr>`;
+  }
+}
+</script>
+
+</body>
+</html> 

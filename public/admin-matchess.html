@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin Match Panel — Pairing & Delete</title>
+<style>
+  body { background:#0b0b0b; color:#f2f2f2; font-family:"Poppins",sans-serif; padding:22px; }
+  h1 { color:#00faff; text-align:center; margin-bottom:18px; }
+  .tabs { display:flex; gap:8px; justify-content:center; margin-bottom:16px; }
+  .tab { background:#1c1c1c; color:#fff; padding:10px 14px; border-radius:8px; cursor:pointer; border:none; }
+  .tab.active { background:#00faff; color:#000; font-weight:700; }
+  .controls { display:flex; justify-content:space-between; margin-bottom:12px; gap:12px; flex-wrap:wrap; }
+  .btn { background:#00faff; color:#000; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; }
+  .pair-btn { background:#10b981; color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:700; }
+  .delete-btn { background:#f87171; color:#fff; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; font-weight:600; font-size:12px; }
+  .section { background:#131313; padding:14px; border-radius:10px; margin-bottom:14px; box-shadow:0 6px 18px rgba(0,250,255,0.04); }
+  table { width:100%; border-collapse:collapse; margin-top:10px; }
+  th,td { padding:8px; border-bottom:1px solid #222; text-align:center; font-size:13px; }
+  th { background:#111; color:#00faff; }
+  .empty { text-align:center; color:#999; padding:18px; }
+  .paired-box { background:#07121a; border:1px solid rgba(0,250,255,0.12); padding:12px; border-radius:8px; margin-bottom:10px; }
+  .paired-title { color:#00faff; font-weight:700; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .player-row { display:flex; gap:12px; align-items:center; justify-content:space-between; padding:6px 4px; }
+  .vs { text-align:center; font-weight:900; color:#fff; margin:6px 0; }
+  .wallet { color:#00ff88; font-weight:700; }
+  .msg { text-align:center; margin-top:10px; color:#00faff; }
+  .error { color:#ff8a8a; }
+  input[type="checkbox"] { transform:scale(1.15); }
+  .small { font-size:12px; color:#aaa; margin-left:8px; }
+  @media (max-width:780px){ .player-row { flex-direction:column; gap:6px; } }
+</style>
+</head>
+<body>
+  <h1>⚙ Admin — Quick Match Control</h1>
+
+  <div class="tabs">
+    <button class="tab active" data-route="joined">All Joined</button>
+    <button class="tab" data-route="joined/unpaired">Unpaired</button>
+    <button class="tab" data-route="joined/paired">Paired</button>
+  </div>
+
+  <div class="controls">
+    <div>
+      <button class="btn" id="refreshBtn">🔄 Refresh</button>
+      <span class="small">(After pair → just reload)</span>
+    </div>
+    <div>
+      <button class="pair-btn" id="pairSelectedBtn" style="display:none;">➕ Pair Selected Members</button>
+      <button class="delete-btn" id="deleteAllUnpairedBtn" style="display:none;">🗑 Delete All Unpaired</button>
+      <button class="delete-btn" id="deleteAllPairedBtn" style="display:none;">🗑 Delete All Paired Matches</button>
+      <button class="delete-btn" id="deleteAllJoinedBtn" style="display:none;">🗑 Delete All Joined Members</button>
+    </div>
+  </div>
+
+  <div id="content"></div>
+  <div class="msg" id="message"></div>
+
+<script>
+/* ---------- CONFIG ---------- */
+const API_BASE = 'http://localhost:5000/api/wallet';
+const adminToken = localStorage.getItem('adminToken') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NWQ3MjNkYmE3YjJmY2Q2NDhlZWViYyIsInBob25lIjoiNzQxMjg1MDM1MyIsImlzQWRtaW4iOnRydWUsImlhdCI6MTc2NDk1Mjg5MCwiZXhwIjoxNDM4Nzk5Mjg5MH0.jhmbmbR8Wn6k1ZBp1c4ZqYSBbFZzUNANhs5QNDy_XRo'; // IMPORTANT: set this in browser devtools or login flow
+
+/* helper: fetch with admin auth header */
+async function fetchWithAuth(url, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {}, {
+    'Content-Type': opts.headers && opts.headers['Content-Type'] ? opts.headers['Content-Type'] : 'application/json'
+  });
+  if (adminToken) headers.Authorization = 'Bearer ' + adminToken;
+  return fetch(url, Object.assign({}, opts, { headers }));
+}
+
+/* ---------- UI state ---------- */
+let activeRoute = 'joined';
+let allData = [];
+
+/* ---------- events ---------- */
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    activeRoute = btn.dataset.route;
+    renderForRoute(activeRoute);
+  });
+});
+document.getElementById('refreshBtn').addEventListener('click', ()=> renderForRoute(activeRoute));
+document.getElementById('pairSelectedBtn').addEventListener('click', pairSelected);
+document.getElementById('deleteAllUnpairedBtn').addEventListener('click', deleteAllUnpaired);
+document.getElementById('deleteAllPairedBtn').addEventListener('click', deleteAllPaired);
+document.getElementById('deleteAllJoinedBtn').addEventListener('click', deleteAllJoined);
+
+/* bootstrap */
+renderForRoute(activeRoute);
+
+/* ---------- router / loader ---------- */
+async function renderForRoute(route) {
+  const messageEl = document.getElementById('message');
+  messageEl.textContent = '';
+  messageEl.classList.remove('error');
+
+  // toggle controls
+  document.getElementById('pairSelectedBtn').style.display = route === 'joined/unpaired' ? 'inline-block' : 'none';
+  document.getElementById('deleteAllUnpairedBtn').style.display = route === 'joined/unpaired' ? 'inline-block' : 'none';
+  document.getElementById('deleteAllPairedBtn').style.display = route === 'joined/paired' ? 'inline-block' : 'none';
+  document.getElementById('deleteAllJoinedBtn').style.display = route === 'joined' ? 'inline-block' : 'none';
+
+  const container = document.getElementById('content');
+  container.innerHTML = '<div class="section"><div class="empty">Loading...</div></div>';
+
+  // require admin token
+  if (!adminToken) {
+    container.innerHTML = `<div class="section"><div class="empty">Admin token missing — please set <code>localStorage.adminToken</code> with a valid admin JWT.</div></div>`;
+    document.getElementById('message').textContent = '401 Unauthorized — admin token missing';
+    document.getElementById('message').classList.add('error');
+    return;
+  }
+
+  try {
+    const res = await fetchWithAuth(`${API_BASE}/${route}`, { method: 'GET' });
+    if (res.status === 401) {
+      container.innerHTML = `<div class="section"><div class="empty">401 — Unauthorized. Please login as admin.</div></div>`;
+      messageEl.textContent = '401 Unauthorized — admin login required';
+      messageEl.classList.add('error');
+      return;
+    }
+    const json = await res.json();
+
+    if (!json.success || !Array.isArray(json.data) || json.data.length === 0) {
+      container.innerHTML = '<div class="section"><div class="empty">No data available</div></div>';
+      allData = [];
+      return;
+    }
+
+    allData = json.data;
+
+    if (route === 'joined') renderJoined(allData, container);
+    else if (route === 'joined/unpaired') renderUnpaired(allData, container);
+    else renderPaired(allData, container);
+
+  } catch (err) {
+    console.error('Load error', err);
+    container.innerHTML = '<div class="section"><div class="empty">Error loading data — see console</div></div>';
+    messageEl.textContent = 'Error loading data';
+    messageEl.classList.add('error');
+    allData = [];
+  }
+}
+
+/* ---------- render helpers ---------- */
+function escapeHtml(s){
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderJoined(data, container) {
+  const rows = data.map((m,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${escapeHtml(m.name || m.uid || 'Unknown')}</td>
+      <td>${escapeHtml(m.uid || '')}</td>
+      <td>${escapeHtml(m.phone || 'Unknown')}</td>
+      <td>${escapeHtml(m.userId || '')}</td>
+      <td>${m.joinedAt ? new Date(m.joinedAt).toLocaleString() : '-'}</td>
+      <td>${escapeHtml(m.game || '')}</td>
+      <td>${escapeHtml(m.mode || '')}</td>
+      <td>${escapeHtml(m.type || '')}</td>
+      <td>₹${escapeHtml(m.entryFee || m.fee || 0)}</td>
+      <td>${escapeHtml(m.prizeSystem || '-')}</td>
+      <td>${escapeHtml(m.matchNumber || '-')}</td>
+      <td>${escapeHtml(m.status || '')}</td>
+      <td>${escapeHtml(m.team || 'Not Assigned')}</td>
+      <td><button class="delete-btn" onclick="deleteSingleJoined('${encodeURIComponent(m.matchId || m._id || '')}','${encodeURIComponent(m.userId || '')}')">Delete</button></td>
+    </tr>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="section">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Name</th><th>UID</th><th>Phone</th><th>User ID</th><th>Joined At</th>
+            <th>Game</th><th>Mode</th><th>Type</th><th>Entry Fee</th><th>Prize</th><th>Match No</th><th>Status</th><th>Team</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderUnpaired(data, container) {
+  const rows = data.map((m, idx) => {
+    const prizeSystem = m.prizeSystem || "kill_based";
+
+    // 🟢 TEAM LOGIC (same as backend)
+    let teamDisplay = m.team;
+    if (!teamDisplay || teamDisplay === "null" || teamDisplay === "undefined") {
+      // fallback assignment
+      teamDisplay = "LION/TIGER";
+    }
+
+    return `
+      <tr>
+        <td>
+          <input class="pairSelect" type="checkbox" data-idx="${idx}"
+            data-userid="${escapeHtml(m.userId || '')}"
+            data-name="${escapeHtml(m.name || '')}"
+            data-uid="${escapeHtml(m.uid || '')}"
+            data-game="${escapeHtml(m.game || '')}"
+            data-mode="${escapeHtml(m.mode || '')}"
+            data-type="${escapeHtml(m.type || '')}"
+            data-entry="${escapeHtml(m.entryFee || m.fee || 0)}"
+            data-prizesystem="${escapeHtml(prizeSystem)}"
+            data-team="${escapeHtml(teamDisplay)}"
+            data-matchid="${escapeHtml(m.matchId || '')}"
+          />
+        </td>
+
+        <td>${escapeHtml(m.name || 'Unknown')}</td>
+        <td>${escapeHtml(m.uid || '')}</td>
+        <td>${escapeHtml(m.game || '')}</td>
+        <td>${escapeHtml(m.mode || '')}</td>
+        <td>${escapeHtml(m.type || '')}</td>
+        <td>₹${escapeHtml(m.entryFee || m.fee || 0)}</td>
+        <td class="wallet">₹${escapeHtml(m.wallet || 0)}</td>
+
+        <!-- 🟢 ALWAYS SHOW TEAM (team_equal + kill_based) -->
+        <td>${escapeHtml(teamDisplay)}</td>
+
+        <td>
+          <button class="delete-btn"
+            onclick="deleteSingleUnpaired('${encodeURIComponent(m.matchId || '')}','${encodeURIComponent(m.userId || '')}')">
+            Delete
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="section">
+      <table>
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>Name</th>
+            <th>UID</th>
+            <th>Game</th>
+            <th>Mode</th>
+            <th>Type</th>
+            <th>Entry Fee</th>
+            <th>Wallet</th>
+            <th>Team</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+
+function renderPaired(data, container) {
+  const cards = data.map((m, idx) => {
+    const playersHtml = (m.players || []).map((p, i) => {
+      return `<div class="player-row">
+                <div style="flex:1; text-align:left;">👤 <b>${escapeHtml(p.name || p.uid || 'Unknown')}</b> (${escapeHtml(p.uid || '-')})</div>
+                <div style="width:140px; text-align:right;" class="wallet">₹${escapeHtml(p.wallet || 0)}</div>
+                <div>${escapeHtml(p.team || 'Not Assigned')}</div>
+              </div>`;
+    }).join('<div class="vs">VS</div>');
+    const titleLeft = escapeHtml(m.pairedMatchNo || m.matchNumber || (`#${idx+1}`));
+    const meta = `${escapeHtml(m.game||'')} · ${escapeHtml(m.mode||'')} · ${escapeHtml(m.type||'')}`;
+    return `<div class="paired-box">
+              <div class="paired-title"><div>${titleLeft}</div><div>${meta}</div></div>
+              ${playersHtml}
+              <div style="text-align:right; margin-top:6px;">
+                <button class="delete-btn" onclick="deleteSinglePaired('${encodeURIComponent(m.matchId || m._id || '')}')">Delete Match</button>
+              </div>
+            </div>`;
+  }).join('');
+  container.innerHTML = `<div class="section">${cards}</div>`;
+}
+
+/* ---------- pairing ---------- */
+async function pairSelected() {
+  const checked = Array.from(document.querySelectorAll('.pairSelect:checked'));
+  if (!checked.length) {
+    alert('Please select members to pair');
+    return;
+  }
+
+  // 🔥 Type detection (Example: "2v2")
+  const first = checked[0];
+  const type = first.dataset.type;
+  const typeNum = parseInt(String(type).split('v')[0], 10);
+
+  if (isNaN(typeNum) || typeNum <= 0) {
+    alert('Invalid match type');
+    return;
+  }
+
+  const required = typeNum * 2;
+
+  if (checked.length !== required) {
+    alert(`⚠ You must select exactly ${required} players for ${type} matches.`);
+    return;
+  }
+
+  // 🔥 Validate SAME game/mode/entry/type
+  const game = first.dataset.game;
+  const mode = first.dataset.mode;
+  const entry = first.dataset.entry;
+
+  const same = checked.every(ch =>
+    ch.dataset.game === game &&
+    ch.dataset.mode === mode &&
+    ch.dataset.entry === entry &&
+    ch.dataset.type === type
+  );
+
+  if (!same) {
+    alert('⚠ All selected players must have SAME game, mode, type & entry fee.');
+    return;
+  }
+
+  // 🔥 Prepare Members Array (CLEANED)
+  const selectedMembers = checked.map(ch => ({
+    userId: ch.dataset.userid || null,
+    uid: ch.dataset.uid || null,
+    name: ch.dataset.name || null,
+    phone: ch.dataset.phone || null,
+    prizeSystem: ch.dataset.prizesystem || null, // ← backend uses only for >1v1
+  }));
+
+  try {
+    document.getElementById('message').textContent = 'Pairing...';
+
+    const res = await fetchWithAuth(`${API_BASE}/pair`, {
+      method: 'POST',
+      body: JSON.stringify({
+        selectedMembers,
+        game,
+        mode,
+        type,
+        entryFee: Number(entry)
+      })
+    });
+
+    if (res.status === 401) {
+      document.getElementById('message').textContent =
+        '401 Unauthorized — admin token invalid';
+      document.getElementById('message').classList.add('error');
+      return;
+    }
+
+    const body = await res.json();
+
+    if (!res.ok || !body.success) {
+      alert('Pair failed: ' + (body.msg || body.message || 'Server error'));
+      document.getElementById('message').textContent = '';
+      return;
+    }
+
+    // 🔥 Redirect to match details
+    const created = Array.isArray(body.data) ? body.data[0] : (body.data || {});
+    const players = created.players || [];
+    const p1 = players[0] || {};
+    const p2 = players[1] || {};
+
+    const matchId = created._id || created.matchId || '';
+
+    const url =
+      `admin-match-details.html?matchId=${encodeURIComponent(matchId)}` +
+      `&player1=${encodeURIComponent(p1.name || '')}` +
+      `&player2=${encodeURIComponent(p2.name || '')}` +
+      `&uid1=${encodeURIComponent(p1.uid || '')}` +
+      `&uid2=${encodeURIComponent(p2.uid || '')}` +
+      `&game=${encodeURIComponent(created.game || game)}` +
+      `&mode=${encodeURIComponent(created.mode || mode)}` +
+      `&fee=${encodeURIComponent(created.entryFee || entry)}`;
+
+    window.location.href = url;
+
+  } catch (err) {
+    console.error('Pair request failed', err);
+    alert('Server error while pairing (check console)');
+    document.getElementById('message').textContent = '';
+  }
+}
+
+/* ---------- delete endpoints ---------- */
+async function deleteAllUnpaired(){
+  if(!confirm('⚠ Are you sure you want to delete all unpaired members?')) return;
+  try {
+    const res = await fetchWithAuth(`${API_BASE}/joined/unpaired`, { method: 'DELETE' });
+    if (res.status === 401) { alert('Unauthorized'); return; }
+    const b = await res.json();
+    alert(b.msg || 'Deleted');
+    renderForRoute(activeRoute);
+  } catch (e) { console.error(e); alert('Error deleting unpaired members'); }
+}
+
+async function deleteAllPaired(){
+  if(!confirm('⚠ Are you sure you want to delete all paired matches?')) return;
+  try {
+    const res = await fetchWithAuth(`${API_BASE}/joined/paired`, { method: 'DELETE' });
+    if (res.status === 401) { alert('Unauthorized'); return; }
+    const b = await res.json();
+    alert(b.msg || 'Deleted');
+    renderForRoute(activeRoute);
+  } catch (e) { console.error(e); alert('Error deleting paired matches'); }
+}
+
+async function deleteAllJoined(){
+  if(!confirm('⚠ Are you sure you want to delete all joined members?')) return;
+  try {
+    const res = await fetchWithAuth(`${API_BASE}/joined/all`, { method: 'DELETE' });
+    if (res.status === 401) { alert('Unauthorized'); return; }
+    const b = await res.json();
+    alert(b.msg || 'Deleted');
+    renderForRoute(activeRoute);
+  } catch (e) { console.error(e); alert('Error deleting joined members'); }
+}
+
+async function deleteSingleUnpaired(matchId, userId){
+  if(!confirm('Delete this player?')) return;
+  try {
+    const res = await fetchWithAuth(`${API_BASE}/joined/unpaired/${encodeURIComponent(matchId)}/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+    if (res.status === 401) { alert('Unauthorized'); return; }
+    const b = await res.json();
+    alert(b.msg || 'Deleted');
+    renderForRoute(activeRoute);
+  } catch (e) { console.error(e); alert('Error deleting player'); }
+}
+
+async function deleteSinglePaired(matchId){
+  if(!confirm('Delete this match?')) return;
+  try {
+    const res = await fetchWithAuth(`${API_BASE}/joined/paired/${encodeURIComponent(matchId)}`, { method: 'DELETE' });
+    if (res.status === 401) { alert('Unauthorized'); return; }
+    const b = await res.json();
+    alert(b.msg || 'Deleted');
+    renderForRoute(activeRoute);
+  } catch (e) { console.error(e); alert('Error deleting match'); }
+}
+
+async function deleteSingleJoined(matchId, userId){
+  // for joined single we call joined/single/<joinedId> OR joined/single/<matchId>/<userId>
+  // backend route in your code used: /joined/single/:joinedId
+  // but earlier you passed matchId + userId — to be safe, try both forms
+  if(!confirm('Delete this joined member?')) return;
+  try {
+    // if userId present -> try deleting by matchId/userId first
+    if (userId) {
+      const tryUrl = `${API_BASE}/joined/unpaired/${encodeURIComponent(matchId)}/${encodeURIComponent(userId)}`;
+      const res1 = await fetchWithAuth(tryUrl, { method: 'DELETE' });
+      if (res1.ok) { const b = await res1.json(); alert(b.msg||'Deleted'); renderForRoute(activeRoute); return; }
+    }
+    // fallback: single joined id
+    const res2 = await fetchWithAuth(`${API_BASE}/joined/single/${encodeURIComponent(matchId)}`, { method: 'DELETE' });
+    if (res2.status === 401) { alert('Unauthorized'); return; }
+    const b2 = await res2.json();
+    alert(b2.msg || 'Deleted');
+    renderForRoute(activeRoute);
+  } catch (e) { console.error(e); alert('Error deleting joined member'); }
+}
+</script>
+</body>
+</html>

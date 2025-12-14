@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Pending Deposits</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #121212;
+      color: #fff;
+      padding: 30px;
+    }
+    h2 {
+      text-align: center;
+      color: #00faff;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 20px 0;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    button {
+      padding: 6px 14px;
+      margin: 2px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .approve {
+      background: #00ff88;
+      color: #000;
+    }
+    .reject {
+      background: #ff4d4d;
+      color: #fff;
+    }
+    .export {
+      background: #007bff;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #444;
+      padding: 12px;
+      text-align: center;
+    }
+    th {
+      background: #1e1e1e;
+      color: #00faff;
+    }
+    .msg {
+      text-align: center;
+      margin-top: 10px;
+      color: #00ff88;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🧾 Pending Deposits</h2>
+
+  <input type="text" id="searchInput" placeholder="Search by phone or UTR..." onkeyup="filterDeposits()">
+
+  <button class="export" onclick="exportToCSV()">📥 Export to CSV</button>
+
+  <div class="msg" id="msg"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>User Phone</th>
+        <th>Amount</th>
+        <th>UTR</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="depositTable"></tbody>
+  </table>
+
+  <script>
+  async function fetchDeposits() {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:5000/api/wallet/admin/pending-deposits", {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      const result = await res.json();
+      const deposits = result.data || [];
+
+      const tbody = document.getElementById("depositTable");
+      tbody.innerHTML = "";
+
+      deposits.forEach(deposit => {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+          <td>${deposit.userId?.phone || 'N/A'}</td>
+          <td>₹${deposit.amount}</td>
+          <td>${deposit.utr || 'N/A'}</td>
+          <td>${new Date(deposit.createdAt).toLocaleString()}</td>
+          <td>
+            <button class="approve" onclick="approveDeposit('${deposit._id}')">✅ Approve</button>
+            <button class="reject" onclick="rejectDeposit('${deposit._id}')">❌ Reject</button>
+          </td>
+        `;
+
+        tbody.appendChild(row);
+      });
+    } catch (err) {
+      console.error("Error fetching deposits", err);
+    }
+  }
+
+  async function approveDeposit(id) {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:5000/api/wallet/admin/approve-deposit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ txnId: id })
+    });
+
+    const result = await res.json();
+    alert(result.msg || "Approved");
+    fetchDeposits();
+  }
+
+  async function rejectDeposit(id) {
+    const token = localStorage.getItem("token");
+    const res = await fetch("http://localhost:5000/api/wallet/admin/reject-deposit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ txnId: id })
+    });
+
+    const result = await res.json();
+    alert(result.msg || "Rejected");
+    fetchDeposits();
+  }
+
+  function filterDeposits() {
+    const input = document.getElementById("searchInput").value.toLowerCase();
+    const rows = document.getElementById("depositTable").getElementsByTagName("tr");
+
+    Array.from(rows).forEach(row => {
+      const phone = row.cells[0]?.innerText.toLowerCase();
+      const utr = row.cells[2]?.innerText.toLowerCase();
+
+      if (phone.includes(input) || utr.includes(input)) {
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+      }
+    });
+  }
+
+  function exportToCSV() {
+    const rows = document.querySelectorAll("table tr");
+    let csv = [];
+
+    rows.forEach(row => {
+      const cols = row.querySelectorAll("td, th");
+      const rowData = Array.from(cols).map(col => `"${col.innerText.trim()}"`);
+      csv.push(rowData.join(","));
+    });
+
+    const csvData = new Blob([csv.join("\n")], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(csvData);
+    link.download = "pending-deposits.csv";
+    link.click();
+  }
+
+  window.onload = fetchDeposits;
+</script>
+
+</body>
+</html>

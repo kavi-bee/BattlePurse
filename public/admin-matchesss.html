@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin — Match Dashboard</title>
+<style>
+body { font-family: 'Poppins', sans-serif; background:#0b0b0b; color:#fff; margin:0; padding:20px; }
+h1 { margin-bottom:20px; }
+.tabs { display:flex; gap:10px; margin-bottom:18px; }
+.tab-btn { padding:8px 14px; border-radius:6px; border:none; background:#111; color:#fff; cursor:pointer; }
+.tab-btn.active { background:#00faff; color:#000; }
+.controls { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.btn { padding:8px 12px; border-radius:8px; border:none; cursor:pointer; background:#00d5ff; color:#000; font-weight:600; }
+.danger { background:#ff4d4d; color:#fff; padding:6px 10px; border-radius:6px; border:none; cursor:pointer; }
+.pair { background:#ffa500; color:#000; padding:8px 12px; border-radius:6px; border:none; cursor:pointer; }
+table { width:100%; border-collapse:collapse; margin-bottom:18px; }
+th, td { padding:8px; border:1px solid #333; text-align:left; font-size:13px; }
+th { background:#111; color:#00faff; }
+tr:nth-child(even) { background:#161616; }
+.small { font-size:12px; color:#aaa; margin-left:8px; }
+.msg { margin-top:10px; color:#9ae; }
+.error { color:#ff8a8a; }
+.wa-btn { background:#25D366; color:#fff; border:none; padding:6px 8px; border-radius:6px; cursor:pointer; }
+.copy-btn { background:#00faff; color:#000; border:none; padding:6px 8px; border-radius:6px; cursor:pointer; }
+.template-editor { background:#0f0f0f; padding:10px; border-radius:8px; margin-left:8px; display:inline-block; }
+textarea { width:420px; max-width:100%; height:80px; background:#0b0b0b; color:#fff; border:1px solid #222; padding:8px; border-radius:6px; }
+@media (max-width:820px){ .controls { flex-direction:column; align-items:flex-start } textarea { width:100%; } }
+</style>
+</head>
+<body>
+<h1>Admin — Match Dashboard</h1>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="joined">Joined</button>
+  <button class="tab-btn" data-tab="unpaired">Unpaired</button>
+  <button class="tab-btn" data-tab="paired">Paired/Ongoing</button>
+  <button class="tab-btn" data-tab="completed">Completed</button>
+</div>
+
+<div class="controls">
+  <button id="refreshBtn" class="btn">🔄 Refresh</button>
+  <button id="pairBtn" class="pair" style="display:none;">Pair Selected</button>
+  <button id="exportWA" class="btn">Edit WA Template</button>
+  <div class="template-editor" id="templateBox" style="display:none;">
+    <div style="display:flex; gap:8px; align-items:center;">
+      <strong class="small">WA Template</strong>
+      <button id="saveTemplate" class="btn" style="padding:6px 8px;">Save</button>
+      <button id="closeTemplate" class="danger" style="padding:6px 8px;">Close</button>
+    </div>
+    <div style="margin-top:8px;">
+      <textarea id="waTemplate" placeholder="Use placeholders: {name} {uid} {game} {mode} {type} {entryFee} {matchId} {team} {phone}"></textarea>
+    </div>
+    <div class="small" style="margin-top:6px;">Example: Hello {name}, your {game} match (ID: {matchId}) — Team: {team} — Entry: ₹{entryFee}.</div>
+  </div>
+</div>
+
+<div id="msg" class="msg"></div>
+
+<!-- Sections for Joined, Unpaired, Paired, Completed -->
+<div id="joinedSection">
+  <h2>Joined Members</h2>
+  <button class="danger" onclick="deleteAllJoined()">Delete All Joined Members</button>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th><th>UID</th><th>Phone</th><th>User ID</th><th>Joined At</th>
+        <th>Game</th><th>Mode</th><th>Type</th><th>Map</th><th>Entry Fee</th><th>WhatsApp</th>
+        <th>Status</th><th>Team</th><th>Headshot</th><th>Character Skill</th><th>Gun Attr</th><th>Throwable Limit</th><th>Guns</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="joinedBody"></tbody>
+  </table>
+</div>
+
+<div id="unpairedSection" style="display:none">
+  <h2>Unpaired Members</h2>
+  <button class="danger" onclick="deleteAllUnpaired()">Delete All Unpaired</button>
+  <table>
+    <thead>
+      <tr>
+        <th>Select</th><th>Name</th><th>UID</th><th>Phone</th><th>User ID</th><th>Joined At</th>
+        <th>Game</th><th>Mode</th><th>Type</th><th>Map</th><th>Entry Fee</th><th>WhatsApp</th><th>Team</th>
+        <th>Headshot</th><th>Character Skill</th><th>Gun Attr</th><th>Throwable Limit</th><th>Guns</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="unpairedBody"></tbody>
+  </table>
+</div>
+
+<div id="pairedSection" style="display:none">
+  <h2>Paired / Ongoing Matches</h2>
+  <button class="danger" onclick="deleteAllPaired()">Delete All Paired Matches</button>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th><th>UID</th><th>Phone</th><th>User ID</th><th>Joined At</th>
+        <th>Game</th><th>Mode</th><th>Type</th><th>Map</th><th>Entry Fee</th>
+        <th>WhatsApp</th><th>Prize</th><th>Match No</th><th>Status</th><th>Team</th>
+        <th>Headshot</th><th>Character Skill</th><th>Gun Attr</th><th>Throwable Limit</th><th>Guns</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="pairedBody"></tbody>
+  </table>
+</div>
+
+<div id="completedSection" style="display:none">
+  <h2>Completed Matches</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th><th>UID</th><th>Phone</th><th>User ID</th><th>Joined At</th>
+        <th>Game</th><th>Mode</th><th>Type</th><th>Map</th><th>Entry Fee</th>
+        <th>WhatsApp</th><th>Prize</th><th>Match No</th><th>Status</th><th>Team</th>
+        <th>Headshot</th><th>Character Skill</th><th>Gun Attr</th><th>Throwable Limit</th><th>Guns</th>
+      </tr>
+    </thead>
+    <tbody id="completedBody"></tbody>
+  </table>
+</div>
+
+<script>
+/* --------- CONFIG ---------- */
+const API_BASE = 'http://localhost:5000/api/wallet'; // adjust backend
+const token = localStorage.getItem('token'); // admin token
+const headersWithAuth = () => ({ 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' });
+
+/* UI state */
+let selected = new Set(); // "matchId_userId"
+let unpairedRows = []; // latest unpaired data
+const waTemplateKey = 'admin_wa_template';
+
+/* ---------- helpers ---------- */
+function showMsg(text, isError=false){
+  const el = document.getElementById('msg');
+  el.textContent = text || '';
+  el.className = isError ? 'msg error' : 'msg';
+  el.style.display = text ? 'block' : 'none';
+}
+function formatDate(d){ try{ return new Date(d).toLocaleString(); }catch(e){ return '-'; } }
+function getWATemplate(){ return localStorage.getItem(waTemplateKey) || 'Hello {name}, your match is ready. Game:{game} Type:{type} Entry: ₹{entryFee} Team:{team} MatchID:{matchId}'; }
+function saveWATemplate(t){ localStorage.setItem(waTemplateKey, t); }
+
+function fillTemplate(tpl, data){
+  return tpl.replace(/\{(\w+)\}/g, (_, k) => (data[k] !== undefined && data[k] !== null) ? String(data[k]) : '');
+}
+
+function sanitizeNumber(raw){
+  if(!raw) return '';
+  const digits = String(raw).replace(/\D/g,'');
+  if(digits.length === 10) return '91' + digits;
+  return digits;
+}
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('joinedSection').style.display = tab==='joined' ? '' : 'none';
+    document.getElementById('unpairedSection').style.display = tab==='unpaired' ? '' : 'none';
+    document.getElementById('pairedSection').style.display = tab==='paired' ? '' : 'none';
+    document.getElementById('completedSection').style.display = tab==='completed' ? '' : 'none';
+    document.getElementById('pairBtn').style.display = tab==='unpaired' && selected.size ? 'inline-block' : 'none';
+    fetchAllForTab(tab);
+  });
+});
+
+/* ---------- Template Editor ---------- */
+document.getElementById('exportWA').addEventListener('click', ()=>{
+  const box = document.getElementById('templateBox');
+  box.style.display = box.style.display==='none' ? 'block' : 'none';
+  document.getElementById('waTemplate').value = getWATemplate();
+});
+document.getElementById('saveTemplate').addEventListener('click', ()=>{
+  saveWATemplate(document.getElementById('waTemplate').value.trim());
+  showMsg('WA template saved');
+});
+document.getElementById('closeTemplate').addEventListener('click', ()=> document.getElementById('templateBox').style.display='none');
+
+/* ---------- Refresh ---------- */
+document.getElementById('refreshBtn').addEventListener('click', ()=>{
+  const active = document.querySelector('.tab-btn.active').dataset.tab;
+  fetchAllForTab(active);
+});
+
+/* ---------- Pair ---------- */
+document.getElementById('pairBtn').addEventListener('click', pairSelected);
+
+/* ---------- Fetchers ---------- */
+async function fetchAllForTab(tab){
+  showMsg('Loading...');
+  try{
+    if(tab==='joined') await loadJoined();
+    else if(tab==='unpaired') await loadUnpaired();
+    else if(tab==='paired') await loadPaired();
+    else if(tab==='completed') await loadCompleted();
+    showMsg('');
+  }catch(e){
+    console.error(e);
+    showMsg('Error loading data', true);
+  }
+}
+
+/* ---------- Helpers for table ---------- */
+function makeButton(text, cls, onClick){
+  const b = document.createElement('button');
+  b.textContent = text;
+  b.className = cls;
+  b.addEventListener('click', onClick);
+  return b;
+}
+function tdText(value){
+  const td = document.createElement('td');
+  td.textContent = value==null ? '' : value;
+  return td;
+}
+function tdBoolean(value){
+  return tdText(value ? '✅' : '❌');
+}
+function tdGuns(selectedGuns){
+  const td = document.createElement('td');
+  const gunsArr = [];
+  for(const key in selectedGuns){
+    if(Array.isArray(selectedGuns[key]) && selectedGuns[key].length) gunsArr.push(`${key}: ${selectedGuns[key].join(',')}`);
+  }
+  td.textContent = gunsArr.join(' | ');
+  return td;
+}
+
+/* ---------- JOINED ---------- */
+async function loadJoined(){
+  const res = await fetch(`${API_BASE}/joined`, { headers: headersWithAuth() });
+  const json = await res.json();
+  const tbody = document.getElementById('joinedBody');
+  tbody.innerHTML='';
+  if(!json.success || !Array.isArray(json.data)) return;
+
+  json.data.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.appendChild(tdText(p.name));
+    tr.appendChild(tdText(p.uid));
+    tr.appendChild(tdText(p.phone));
+    tr.appendChild(tdText(p.userId));
+    tr.appendChild(tdText(formatDate(p.joinedAt)));
+    tr.appendChild(tdText(p.game));
+    tr.appendChild(tdText(p.mode));
+    tr.appendChild(tdText(p.type));
+    tr.appendChild(tdText(p.map));
+    tr.appendChild(tdText(p.entryFee));
+
+    const waTd = document.createElement('td');
+    waTd.appendChild(document.createTextNode(p.whatsappNumber || p.phone));
+    waTd.appendChild(makeButton('Copy','copy-btn',()=>copyText(p.whatsappNumber || p.phone)));
+    waTd.appendChild(makeButton('WA','wa-btn',()=>openWhatsAppForPlayer(p)));
+    tr.appendChild(waTd);
+
+    tr.appendChild(tdText(p.status));
+    tr.appendChild(tdText(p.team));
+
+    tr.appendChild(tdBoolean(p.gameSettings.headshot));
+    tr.appendChild(tdBoolean(p.gameSettings.characterSkill));
+    tr.appendChild(tdBoolean(p.gameSettings.gunAttributes));
+    tr.appendChild(tdText(p.gameSettings.throwableLimit));
+    tr.appendChild(tdGuns(p.selectedGuns));
+
+    const actionTd = document.createElement('td');
+    actionTd.appendChild(makeButton('Delete','danger',()=>deleteJoined(encodeURIComponent(p.matchId),encodeURIComponent(p.userId))));
+    tr.appendChild(actionTd);
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- UNPAIRED ---------- */
+async function loadUnpaired(){
+  const res = await fetch(`${API_BASE}/joined/unpaired`, { headers: headersWithAuth() });
+  const json = await res.json();
+  unpairedRows = Array.isArray(json.data) ? json.data : [];
+  const tbody = document.getElementById('unpairedBody');
+  tbody.innerHTML='';
+  selected.clear();
+
+  if(!json.success) return;
+
+  unpairedRows.forEach((p, idx)=>{
+    const tr = document.createElement('tr');
+
+    const chkTd = document.createElement('td');
+    const chk = document.createElement('input');
+    chk.type='checkbox';
+    chk.addEventListener('change', ()=>toggleSelect(p.matchId,p.userId));
+    chkTd.appendChild(chk);
+    tr.appendChild(chkTd);
+
+    tr.appendChild(tdText(p.name));
+    tr.appendChild(tdText(p.uid));
+    tr.appendChild(tdText(p.phone));
+    tr.appendChild(tdText(p.userId));
+    tr.appendChild(tdText(formatDate(p.joinedAt)));
+    tr.appendChild(tdText(p.game));
+    tr.appendChild(tdText(p.mode));
+    tr.appendChild(tdText(p.type));
+     tr.appendChild(tdText(p.map));
+    tr.appendChild(tdText(p.entryFee));
+
+    const waTd = document.createElement('td');
+    waTd.appendChild(document.createTextNode(p.whatsappNumber || p.phone));
+    waTd.appendChild(makeButton('Copy','copy-btn',()=>copyText(p.whatsappNumber || p.phone)));
+    waTd.appendChild(makeButton('WA','wa-btn',()=>openWhatsAppForPlayer(p)));
+    tr.appendChild(waTd);
+
+    tr.appendChild(tdText(p.team));
+
+    tr.appendChild(tdBoolean(p.gameSettings.headshot));
+    tr.appendChild(tdBoolean(p.gameSettings.characterSkill));
+    tr.appendChild(tdBoolean(p.gameSettings.gunAttributes));
+    tr.appendChild(tdText(p.gameSettings.throwableLimit));
+    tr.appendChild(tdGuns(p.selectedGuns));
+
+    const actionTd = document.createElement('td');
+    actionTd.appendChild(makeButton('Delete','danger',()=>deleteSingleUnpaired(encodeURIComponent(p.matchId),encodeURIComponent(p.userId))));
+    tr.appendChild(actionTd);
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- PAIRED ---------- */
+async function loadPaired(){
+  const res = await fetch(`${API_BASE}/joined/paired`, { headers: headersWithAuth() });
+  const json = await res.json();
+  const tbody = document.getElementById('pairedBody');
+  tbody.innerHTML='';
+  if(!json.success) return;
+
+  json.data.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.appendChild(tdText(p.name));
+    tr.appendChild(tdText(p.uid));
+    tr.appendChild(tdText(p.phone));
+    tr.appendChild(tdText(p.userId));
+    tr.appendChild(tdText(formatDate(p.joinedAt)));
+    tr.appendChild(tdText(p.game));
+    tr.appendChild(tdText(p.mode));
+    tr.appendChild(tdText(p.type));
+     tr.appendChild(tdText(p.map));
+    tr.appendChild(tdText(p.entryFee));
+
+    const waTd = document.createElement('td');
+    waTd.appendChild(document.createTextNode(p.whatsappNumber || p.phone));
+    waTd.appendChild(makeButton('Copy','copy-btn',()=>copyText(p.whatsappNumber || p.phone)));
+    waTd.appendChild(makeButton('WA','wa-btn',()=>openWhatsAppForPlayer(p)));
+    tr.appendChild(waTd);
+
+    tr.appendChild(tdText(p.prize || '-'));
+    tr.appendChild(tdText(p.matchNumber || '-'));
+    tr.appendChild(tdText(p.status));
+    tr.appendChild(tdText(p.team));
+
+    tr.appendChild(tdBoolean(p.gameSettings.headshot));
+    tr.appendChild(tdBoolean(p.gameSettings.characterSkill));
+    tr.appendChild(tdBoolean(p.gameSettings.gunAttributes));
+    tr.appendChild(tdText(p.gameSettings.throwableLimit));
+    tr.appendChild(tdGuns(p.selectedGuns));
+
+    const actionTd = document.createElement('td');
+    actionTd.appendChild(makeButton('Delete','danger',()=>deleteSinglePaired(encodeURIComponent(p.matchId))));
+    tr.appendChild(actionTd);
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- COMPLETED ---------- */
+async function loadCompleted(){
+  const res = await fetch(`${API_BASE}/joined/paired`, { headers: headersWithAuth() });
+  const json = await res.json();
+  const tbody = document.getElementById('completedBody');
+  tbody.innerHTML='';
+  if(!json.success) return;
+
+  json.data.forEach(p=>{
+    if(p.status!=='completed') return;
+    const tr = document.createElement('tr');
+    tr.appendChild(tdText(p.name));
+    tr.appendChild(tdText(p.uid));
+    tr.appendChild(tdText(p.phone));
+    tr.appendChild(tdText(p.userId));
+    tr.appendChild(tdText(formatDate(p.joinedAt)));
+    tr.appendChild(tdText(p.game));
+    tr.appendChild(tdText(p.mode));
+    tr.appendChild(tdText(p.type));
+     tr.appendChild(tdText(p.map));
+    tr.appendChild(tdText(p.entryFee));
+    tr.appendChild(tdText(p.whatsappNumber || p.phone));
+    tr.appendChild(tdText(p.prize || '-'));
+    tr.appendChild(tdText(p.matchNumber || '-'));
+    tr.appendChild(tdText(p.status));
+    tr.appendChild(tdText(p.team));
+
+    tr.appendChild(tdBoolean(p.gameSettings.headshot));
+    tr.appendChild(tdBoolean(p.gameSettings.characterSkill));
+    tr.appendChild(tdBoolean(p.gameSettings.gunAttributes));
+    tr.appendChild(tdText(p.gameSettings.throwableLimit));
+    tr.appendChild(tdGuns(p.selectedGuns));
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------- Selection / Pairing ---------- */
+function toggleSelect(matchId, userId){
+  const key = `${matchId}_${userId}`;
+  if(selected.has(key)) selected.delete(key);
+  else selected.add(key);
+  document.getElementById('pairBtn').style.display = selected.size ? 'inline-block' : 'none';
+}
+
+async function pairSelected(){
+  if(selected.size===0) return alert('Select members first');
+  const members=[];
+  for(const k of selected){
+    const [matchId,userId] = k.split('_');
+    const p = unpairedRows.find(x=>String(x.matchId)===matchId && String(x.userId)===userId);
+    if(!p){ alert('Selected member not found. Refresh and try.'); return; }
+    members.push(p);
+  }
+
+  const first = members[0];
+  const same = members.every(m => m.game===first.game && m.mode===first.mode && m.type===first.type && Number(m.entryFee)===Number(first.entryFee));
+  if(!same) return alert('All selected members must have same game, mode, type and entry fee.');
+
+  try{
+    showMsg('Pairing...');
+    const res = await fetch(`${API_BASE}/pair`,{
+      method:'POST',
+      headers:headersWithAuth(),
+      body:JSON.stringify({ selectedMembers: members, game:first.game, type:first.type, mode:first.mode, entryFee:Number(first.entryFee) })
+    });
+    const json = await res.json();
+    if(!json.success){ showMsg(json.msg || 'Pair failed', true); return; }
+    const created = Array.isArray(json.data) && json.data.length ? json.data[0] : json.data;
+    showMsg('Paired successfully. Redirecting...');
+    setTimeout(()=> {
+      if(created?._id) window.location.href = `admin-match-detailss.html?matchId=${encodeURIComponent(created._id)}`;
+      else fetchAllForTab('unpaired');
+    },700);
+  }catch(err){ console.error(err); showMsg('Server error while pairing', true); }
+}
+
+/* ---------- Delete ---------- */
+async function deleteAllUnpaired(){ if(!confirm('Delete ALL unpaired matches?')) return; try{ await fetch(`${API_BASE}/match/unpaired`,{ method:'DELETE', headers:headersWithAuth() }); fetchAllForTab('unpaired'); showMsg('Deleted all unpaired'); } catch(e){ console.error(e); showMsg('Error deleting', true); }}
+async function deleteAllPaired(){ if(!confirm('Delete ALL paired matches?')) return; try{ await fetch(`${API_BASE}/match/paired`,{ method:'DELETE', headers:headersWithAuth() }); fetchAllForTab('paired'); showMsg('Deleted all paired'); } catch(e){ console.error(e); showMsg('Error deleting', true); }}
+async function deleteAllJoined(){ if(!confirm('Delete ALL joined matches?')) return; try{ await fetch(`${API_BASE}/match/all`,{ method:'DELETE', headers:headersWithAuth() }); fetchAllForTab('joined'); showMsg('Deleted all joined'); } catch(e){ console.error(e); showMsg('Error deleting', true); }}
+async function deleteSingleUnpaired(matchId,userId){ if(!confirm('Delete this unpaired player?')) return; try{ await fetch(`${API_BASE}/match/player/${matchId}/${userId}`,{ method:'DELETE', headers:headersWithAuth() }); fetchAllForTab('unpaired'); } catch(e){ console.error(e); showMsg('Error deleting player', true); }}
+async function deleteSinglePaired(matchId){ if(!confirm('Delete this paired match?')) return; try{ await fetch(`${API_BASE}/match/${matchId}`,{ method:'DELETE', headers:headersWithAuth() }); fetchAllForTab('paired'); } catch(e){ console.error(e); showMsg('Error deleting match', true); }}
+async function deleteJoined(matchId,userId){ if(!confirm('Delete this player?')) return; try{ await fetch(`${API_BASE}/match/player/${matchId}/${userId}`,{ method:'DELETE', headers:headersWithAuth() }); fetchAllForTab('joined'); } catch(e){ console.error(e); showMsg('Error deleting player', true); }}
+
+/* ---------- WhatsApp ---------- */
+function copyText(text){ if(!text) return; navigator.clipboard.writeText(text).then(()=>showMsg('Copied')).catch(()=>showMsg('Copy failed',true)); }
+function openWhatsAppForPlayer(p){
+  const tpl = getWATemplate();
+  const data = { name:p.name||p.uid, uid:p.uid, game:p.game, mode:p.mode, type:p.type, entryFee:p.entryFee, matchId:p.matchId, team:p.team, phone:p.phone||p.whatsappNumber };
+  const msg = fillTemplate(tpl,data);
+  const sanitized = sanitizeNumber(p.whatsappNumber||p.phone);
+  if(!sanitized){ alert('No phone available'); return; }
+  window.open(`https://wa.me/${sanitized}?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+/* ---------- BOOT ---------- */
+fetchAllForTab('joined');
+
+</script>
+</body>
+</html>
