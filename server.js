@@ -5,7 +5,7 @@ const cors = require("cors");
 const path = require("path");
 
 // 🔥 Initialize Firebase (OTP)
-require("./config/firebase");
+
 
 // Load environment variables
 dotenv.config();
@@ -35,7 +35,7 @@ mongoose
   });
 
 // ✅ API routes
-app.use("/api/auth", require("./routes/auth"));   // 🔥 OTP auth
+
 app.use("/api/wallet", require("./routes/wallet"));
 
 // ✅ Root route

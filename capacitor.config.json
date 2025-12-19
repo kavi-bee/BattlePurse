@@ -1,5 +1,6 @@
 {
   "appId": "com.battlepurse.app",
   "appName": "BattlePurse",
-  "webDir": "public"
+  "webDir": "public",
+  "bundledWebRuntime": false
 }

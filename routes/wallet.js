@@ -27,320 +27,245 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 
 // ====================== REGISTER ======================
-const admin = require("../firebase");
 
-// ====================== REGISTER (Firebase OTP) ======================
-router.post("/register", async (req, res) => {
-  const { name, password, firebaseToken } = req.body;
 
+const sendOTP = require("../utils/sendOTP");
+
+
+
+const Otp = require("../models/Otp");
+const mailer = require("../utils/mailer");
+
+/* 🔢 OTP generator */
+const genOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+/* ================================
+   REGISTER → SEND EMAIL OTP
+================================ */
+router.post("/register-email", async (req, res) => {
   try {
-    if (!name || !password || !firebaseToken) {
+    const { name, phone, email, password } = req.body;
+
+    if (!name || !phone || !email || !password)
       return res.status(400).json({ msg: "All fields required" });
-    }
 
-    // 1️⃣ Verify Firebase token
-    const decoded = await admin.auth().verifyIdToken(firebaseToken);
-    const phone = decoded.phone_number;
-
-    if (!phone) {
-      return res.status(400).json({ msg: "Phone not verified" });
-    }
-
-    // 2️⃣ Check existing user
-    let user = await User.findOne({ phone });
-    if (user) {
+    const exists = await User.findOne({ $or: [{ phone }, { email }] });
+    if (exists)
       return res.status(400).json({ msg: "User already exists" });
-    }
 
-    // 3️⃣ Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 4️⃣ Create user
-    user = new User({
+    // 🔥 IMPORTANT: delete old OTPs
+    await Otp.deleteMany({ email, purpose: "register" });
+
+    // ✅ STORE PASSWORD TEMPORARILY
+    await Otp.create({
+      email,
+      otp,
+      purpose: "register",
       name,
       phone,
-      password: hashedPassword,
-      isAdmin: false,
-      wallet: 0,
+      password, // 👈 THIS WAS MISSING BEFORE
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     });
 
-    await user.save();
-
-    // 5️⃣ JWT (same as your old code)
-    const token = jwt.sign(
-      { id: user._id, phone: user.phone, isAdmin: user.isAdmin },
-      process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "400y" }
-    );
-
-    res.json({
-      success: true,
-      msg: "Registration successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        isAdmin: user.isAdmin,
-      },
+    await mailer.sendMail({
+      to: email,
+      subject: "Registration OTP",
+      html: `<h2>Your OTP is <b>${otp}</b></h2>`
     });
+
+    res.json({ msg: "OTP sent to email" });
 
   } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ msg: "Firebase verification failed" });
-  }
-});
-// ====================== REGISTER (Old Method) ======================
-
-router.post("/register", async (req, res) => {
-  const { name, phone, password } = req.body;
-
-  try {
-    // 1️⃣ Basic validation
-    if (!name || !phone || !password) {
-      return res.status(400).json({ msg: "Name, phone, and password are required" });
-    }
-
-    // 2️⃣ Check if user already exists
-    let user = await User.findOne({ phone });
-    if (user) return res.status(400).json({ msg: "User already exists" });
-
-    // 3️⃣ Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // 4️⃣ Create user
-    user = new User({
-      name,
-      phone,
-      password: hashedPassword,
-      isAdmin: false,
-      wallet: 0,
-    });
-
-    await user.save();
-
-    // 5️⃣ Generate token
-    const token = jwt.sign(
-      { id: user._id, phone: user.phone, isAdmin: user.isAdmin },
-      process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "400y" }
-    );
-
-    // 6️⃣ Send success response
-    res.json({
-      success: true,
-      msg: "Registration successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        isAdmin: user.isAdmin,
-      },
-    });
-  } catch (err) {
-    console.error("Register error:", err.message);
+    console.error("Register email error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 });
 
 
 
-// ====================== LOGIN ======================
 
-// ====================== LOGIN (Firebase OTP) ======================
-router.post("/login", async (req, res) => {
-  const { password, firebaseToken } = req.body;
-
+/* ================================
+   VERIFY EMAIL OTP & CREATE USER
+================================ */
+router.post("/verify-email-otp", async (req, res) => {
   try {
-    if (!password || !firebaseToken) {
-      return res.status(400).json({ msg: "All fields required" });
-    }
+    const { email, otp } = req.body;
 
-    // 1️⃣ Verify Firebase OTP token
-    const decoded = await admin.auth().verifyIdToken(firebaseToken);
-    const phone = decoded.phone_number;
+    const record = await Otp.findOne({ email, otp, purpose: "register" });
 
-    if (!phone) {
-      return res.status(400).json({ msg: "Phone not verified" });
-    }
+    if (!record || record.expiresAt < Date.now())
+      return res.status(400).json({ msg: "Invalid or expired OTP" });
 
-    // 2️⃣ Find user
-    const user = await User.findOne({ phone });
-    if (!user) {
-      return res.status(400).json({ msg: "User not found" });
-    }
+    // 🛑 SAFETY CHECK (VERY IMPORTANT)
+    if (!record.password)
+      return res.status(400).json({ msg: "Registration data missing. Please resend OTP." });
 
-    // 3️⃣ Check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ msg: "Wrong password" });
-    }
+    const hashed = await bcrypt.hash(record.password, 10);
 
-    // 4️⃣ JWT
-    const token = jwt.sign(
-      { id: user._id, phone: user.phone, isAdmin: user.isAdmin },
-      process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "400y" }
-    );
-
-    res.json({
-      success: true,
-      msg: "Login successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        isAdmin: user.isAdmin,
-      },
+    await User.create({
+      name: record.name,
+      phone: record.phone,
+      email: record.email,
+      password: hashed
     });
 
+    await Otp.deleteMany({ email });
+
+    res.json({ msg: "Registration successful" });
+
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ msg: "Firebase verification failed" });
+    console.error("Verify OTP error:", err);
+    res.status(500).json({ msg: "Server error" });
   }
 });
-// ====================== LOGIN (Old Method) ======================
+
+
+
+
+/* ================================
+   LOGIN
+================================ */
+/* ================================
+   LOGIN
+================================ */
 router.post("/login", async (req, res) => {
   try {
     const { phone, password } = req.body;
 
-    // 1️⃣ Validation
     if (!phone || !password) {
-      return res.status(400).json({ msg: "Phone and password are required" });
+      return res.status(400).json({ msg: "Phone and password required" });
     }
 
-    // 2️⃣ Find user
     const user = await User.findOne({ phone });
     if (!user) {
       return res.status(400).json({ msg: "User not found" });
     }
 
-    // 3️⃣ Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ msg: "Wrong Password" });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(400).json({ msg: "Wrong password" });
     }
 
-    // 4️⃣ Generate token
+    // ✅ isAdmin comes directly from DB (default false)
     const token = jwt.sign(
-      { id: user._id, phone: user.phone, isAdmin: user.isAdmin },
-      process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "400y" }
+      {
+        id: user._id,
+        isAdmin: user.isAdmin === true   // 👈 explicit boolean
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
     );
 
-    // 5️⃣ Send response
     res.json({
       success: true,
-      msg: "Login successful",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        isAdmin: user.isAdmin,
-      },
+      isAdmin: user.isAdmin === true   // optional for frontend
     });
+
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 });
 
-router.post("/forgot/reset", async (req, res) => {
-  const { firebaseToken, newPassword } = req.body;
-
-  const decoded = await admin.auth().verifyIdToken(firebaseToken);
-  const phone = decoded.phone_number;
-
-  const user = await User.findOne({ phone });
-  if (!user) return res.json({ msg: "User not found" });
-
-  user.password = await bcrypt.hash(newPassword, 10);
-  await user.save();
-
-  res.json({ success: true, msg: "Password updated" });
-});
-
-
-
-// Helper to determine transaction color
-function getColor(type, amount) {
-  if (type === "deposit") return "green";
-  if (type === "withdraw") return "red";
-  if (type === "match_reward") return amount > 0 ? "green" : "red";
-  if (type === "match_entry") return "red"; // entry fee deducted
-  return "white";
-}
-
-// ====================== CHECK PHONE FOR FORGOT PASSWORD ======================
-router.post("/forgot/check", async (req, res) => {
-  const { phone } = req.body;
-
-  if (!phone) return res.status(400).json({ msg: "Phone is required" });
-
+/* ================================
+   FORGOT → SEND OTP
+================================ */
+router.post("/forgot/send-otp", async (req, res) => {
   try {
-    const user = await User.findOne({ phone });
-    if (!user) {
-      return res.status(400).json({ msg: "Phone number not found" });
-    }
+    const { phone, email } = req.body;
 
-    res.json({
-      success: true,
-      msg: "Phone verified, you can reset password",
-      userId: user._id
-    });
-  } catch (err) {
-    console.error("Forgot check error:", err);
-    res.status(500).json({ msg: "Server error" });
-  }
-});
-
-// ====================== RESET PASSWORD ======================
-// ====================== RESET PASSWORD ======================
-router.post("/forgot/reset", async (req, res) => {
-  const { phone, newPassword } = req.body;
-
-  if (!phone || !newPassword) {
-    return res.status(400).json({ msg: "Phone and new password are required" });
-  }
-
-  try {
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ phone, email });
     if (!user) return res.status(400).json({ msg: "User not found" });
 
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    const hashed = await bcrypt.hash(newPassword, salt);
+    const otp = genOtp();
 
-    // ✅ Update password directly without triggering other required fields
-    await User.updateOne({ _id: user._id }, { $set: { password: hashed } });
+    await Otp.deleteMany({ email, purpose: "forgot" });
 
-    // Optional: auto login
-    const token = jwt.sign(
-      { id: user._id, phone: user.phone, isAdmin: user.isAdmin },
-      process.env.JWT_SECRET || "your_secret_key",
-      { expiresIn: "400y" }
-    );
-
-    res.json({
-      success: true,
-      msg: "Password reset successfully",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        isAdmin: user.isAdmin,
-      },
+    await Otp.create({
+      email,
+      phone,
+      otp,
+      purpose: "forgot",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     });
-  } catch (err) {
-    console.error("Reset error:", err);
+
+    await mailer.sendMail({
+      to: email,
+      subject: "Password Reset OTP",
+      html: `<h2>Your OTP is <b>${otp}</b></h2>`
+    });
+
+    res.json({ msg: "OTP sent" });
+
+  } catch {
     res.status(500).json({ msg: "Server error" });
   }
 });
+
+/* ================================
+   FORGOT → RESET PASSWORD
+================================ */
+router.post("/forgot/reset", async (req, res) => {
+  try {
+    const { phone, email, otp, newPassword } = req.body;
+
+    const record = await Otp.findOne({ email, phone, otp, purpose: "forgot" });
+    if (!record || record.expiresAt < Date.now())
+      return res.status(400).json({ msg: "Invalid or expired OTP" });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await User.updateOne({ phone, email }, { password: hashed });
+    await Otp.deleteMany({ email });
+
+    res.json({ msg: "Password updated" });
+
+  } catch {
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/* ================================
+   RESEND OTP (REGISTER / FORGOT)
+================================ */
+router.post("/resend-otp", async (req, res) => {
+  try {
+    const { email, purpose } = req.body; 
+    // purpose = "register" or "forgot"
+
+    if (!email || !purpose)
+      return res.status(400).json({ msg: "Missing data" });
+
+    const otp = genOtp();
+
+    // Delete old OTP
+    await Otp.deleteMany({ email, purpose });
+
+    // Save new OTP
+    await Otp.create({
+      email,
+      otp,
+      purpose,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    });
+
+    await mailer.sendMail({
+      to: email,
+      subject: "Your OTP (Resent)",
+      html: `<h2>Your new OTP is <b>${otp}</b></h2>`
+    });
+
+    res.json({ msg: "OTP resent successfully" });
+
+  } catch (err) {
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+
 
 // 🔹 GET USER BALANCE + ALL TRANSACTIONS
 router.get('/balance', auth, async (req, res) => {
@@ -378,30 +303,6 @@ router.get('/balance', auth, async (req, res) => {
 
 
 
-// Get wallet balance and transaction history
-router.get('/balance', auth, async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // Check if wallet exists
-    let wallet = await Wallet.findOne({ userId });
-
-    // Auto-create wallet if not found
-    if (!wallet) {
-      wallet = new Wallet({ userId, balance: 0 });
-      await wallet.save();
-    }
-
-    // Fetch transactions
-    const transactions = await Transaction.find({ userId }).sort({ createdAt: -1 });
-
-    res.json({ balance: wallet.balance, transactions });
-
-  } catch (err) {
-    console.error("Error in /balance:", err);
-    res.status(500).json({ msg: 'Server error' });
-  }
-});
 
 
 // Deposit to wallet
@@ -521,65 +422,44 @@ router.get('/transactions', auth, async (req, res) => {
   }
 });
 
-// Filter transactions (optional: by type or date)
-router.get('/transactions', auth, async (req, res) => {
-    const { type, startDate, endDate } = req.query;
-    const filter = { userId: req.user.id };
 
-    if (type) filter.type = type;
-    if (startDate || endDate) filter.createdAt = {};
-    if (startDate) filter.createdAt.$gte = new Date(startDate);
-    if (endDate) filter.createdAt.$lte = new Date(endDate);
-
-    try {
-        const transactions = await Transaction.find(filter).sort({ createdAt: -1 });
-        const wallet = await Wallet.findOne({ userId: req.user.id });
-
-        if (!wallet) {
-            return res.status(404).json({ msg: 'Wallet not found for user' });
-        }
-
-        res.json({
-            balance: wallet.balance,
-            transactions
-        });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: 'Server error fetching transactions and balance' });
-    }
-});
 
 
 // Get user profile
 // ✅ Get user profile (with name, phone, wallet balance, etc.)
 router.get('/profile', auth, async (req, res) => {
   try {
-    // Find the user and exclude password
+    // 🔍 Find user & exclude password
     const user = await User.findById(req.user.id).select('-password');
-    if (!user) return res.status(404).json({ msg: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
 
-    // Get user's wallet balance
+    // 💰 Get wallet balance
     const wallet = await Wallet.findOne({ userId: req.user.id });
     const balance = wallet ? wallet.balance : 0;
 
-    // ✅ Include the user's name explicitly
+    // 📦 Send profile data
     res.json({
       success: true,
       user: {
         id: user._id,
         name: user.name || "Player",
         phone: user.phone,
+        email: user.email,          // ✅ ADDED
         avatarUrl: user.avatarUrl,
         uids: user.uids,
-        isAdmin: user.isAdmin,
+        isAdmin: user.isAdmin
       },
       balance
     });
+
   } catch (err) {
     console.error("Profile error:", err);
     res.status(500).json({ msg: 'Server error' });
   }
 });
+
 
 
 // Logout (client should just delete token)
@@ -856,22 +736,52 @@ router.post("/submit-utr", auth, async (req, res) => {
   }
 });
 
-
 router.post("/make-admin", async (req, res) => {
-  const { phone } = req.body;
   try {
-    const user = await User.findOne({ phone });
-    if (!user) return res.status(404).json({ msg: "User not found" });
+    const { phone, email } = req.body;
 
+    // ✅ Validation
+    if (!phone || !email) {
+      return res.status(400).json({
+        msg: "Phone and email are required"
+      });
+    }
+
+    // ✅ Find user using BOTH phone & email
+    const user = await User.findOne({ phone, email });
+
+    if (!user) {
+      return res.status(404).json({
+        msg: "User not found with given phone and email"
+      });
+    }
+
+    // ✅ Already admin check
+    if (user.isAdmin) {
+      return res.status(400).json({
+        msg: "User is already an admin"
+      });
+    }
+
+    // ✅ Make admin
     user.isAdmin = true;
     await user.save();
 
-    res.json({ success: true, msg: `${phone} is now an admin.` });
+    res.json({
+      success: true,
+      msg: `${phone} (${email}) is now an admin`
+    });
+
   } catch (err) {
-    console.error("Admin creation error:", err);
-    res.status(500).json({ msg: "Server error" });
+    console.error("Make admin error:", err);
+    res.status(500).json({
+      msg: "Server error"
+    });
   }
 });
+
+
+
 
 router.post('/withdraw', auth, async (req, res) => {
   const { amount } = req.body;
