@@ -125,8 +125,8 @@
   </div>
 
   <div class="form-group">
-    <label for="withdrawAmount">Withdrawal Amount (Min ₹500)</label>
-    <input type="number" id="withdrawAmount" placeholder="Enter Amount" min="500" />
+    <label for="withdrawAmount">Withdrawal Amount (Min ₹1000)</label>
+    <input type="number" id="withdrawAmount" placeholder="Enter Amount" min="1000" />
   </div>
 
   <!-- Bank Card Details -->
@@ -186,8 +186,8 @@
     if (!token) return alert("Login required");
 
     const amount = Number(document.getElementById("withdrawAmount").value);
-    if (!amount || amount < 500) {
-      return alert("Minimum withdrawal amount is ₹500");
+    if (!amount || amount < 1000) {
+      return alert("Minimum withdrawal amount is ₹1000");
     }
 
     let body = {
@@ -249,3 +249,7 @@
 
 </body>
 </html>
+
+
+
+
