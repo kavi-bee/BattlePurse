@@ -4629,6 +4629,124 @@ router.post("/admin/match/complete", authAdmin, async (req, res) => {
 });
 
 
+router.get("/history", auth, async (req, res) => {
+  try {
+    const userId = new mongoose.Types.ObjectId(req.user._id);
+
+    /* ================= MATCH HISTORY ================= */
+    const matches = await QuickMatch.find({
+      status: "completed",
+      $or: [
+        { "players.userId": userId },
+        { "slots.userId": userId }
+      ]
+    })
+      .select(
+        "matchNumber game mode entryFee createdAt prizeSystem prizeGiven type players userResults winnerIds"
+      )
+      .sort({ createdAt: -1 })
+      .limit(100) // 🔥 reduced for speed
+      .lean();
+
+    const history = [];
+
+    for (const m of matches) {
+      const entryFee = Number(m.entryFee || 0);
+      const joinedPlayers = m.players?.length || 1;
+
+      const totalCollected = entryFee * joinedPlayers;
+      const prizePool = Math.max(
+        0,
+        totalCollected - Math.round(totalCollected * 0.08)
+      );
+
+      const myResult = (m.userResults || []).find(
+        r => String(r.userId) === String(userId)
+      );
+
+      let isWinner = false;
+      let prizeWon = 0;
+
+      const winnerIds = (m.winnerIds || []).map(String);
+
+      // ✅ ADMIN DECIDED
+      if (winnerIds.length && winnerIds.includes(String(userId))) {
+        isWinner = true;
+
+        if (m.prizeSystem === "kill_based") {
+          const winners = m.userResults.filter(r =>
+            winnerIds.includes(String(r.userId))
+          );
+          const totalKills = winners.reduce((s, x) => s + (x.kills || 0), 0);
+
+          if (totalKills > 0) {
+            prizeWon = Math.round(
+              ((myResult?.kills || 0) / totalKills) *
+              (m.prizeGiven || prizePool)
+            );
+          }
+        } else {
+          const winnersCount =
+            m.userResults.filter(r =>
+              winnerIds.includes(String(r.userId))
+            ).length || 1;
+
+          prizeWon = Math.round(
+            (m.prizeGiven || prizePool) / winnersCount
+          );
+        }
+      }
+
+      history.push({
+        type: "match",
+        matchId: m._id,
+        matchNumber: m.matchNumber,
+        game: m.game,
+        mode: m.mode,
+        entryFee,
+        createdAt: m.createdAt,
+        kills: myResult?.kills ?? null,
+        result: isWinner ? "win" : "loss",
+        prize: prizeWon
+      });
+    }
+
+    /* ================= TOURNAMENT HISTORY ================= */
+    const tournaments = await Tournament.find({
+      $or: [
+        { "winners.userId": userId },
+        { "players.userId": userId }
+      ]
+    })
+      .select("name game entryFee winners players createdAt")
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+
+    for (const t of tournaments) {
+      const win = t.winners?.find(w => String(w.userId) === String(userId));
+
+      history.push({
+        type: "tournament",
+        tournamentId: t._id,
+        tournamentName: t.name,
+        game: t.game,
+        entryFee: t.entryFee,
+        result: win ? "win" : "loss",
+        prize: win?.prize || 0,
+        createdAt: win?.declaredAt || t.createdAt
+      });
+    }
+
+    history.sort((a, b) => b.createdAt - a.createdAt);
+
+    res.json({ success: true, count: history.length, history });
+
+  } catch (err) {
+    console.error("History Error:", err);
+    res.status(500).json({ success: false, msg: "Server error" });
+  }
+});
 
 
 router.get("/history", auth, async (req, res) => {

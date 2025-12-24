@@ -210,7 +210,7 @@ const pageSize=10;
 async function loadHistory(){
   try{
     const token = localStorage.getItem("token");
-    const res = await fetch("https://battlepurse-20.onrender.com/api/wallet/history",{
+    const res = await fetch("https://battlepurse-78.onrender.com/api/wallet/history",{
       headers:{Authorization:"Bearer "+token}
     });
     const data = await res.json();

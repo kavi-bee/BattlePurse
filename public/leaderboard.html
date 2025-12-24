@@ -190,7 +190,7 @@ async function loadLeaderboard() {
     if (game) params.append("game", game);
     if (date) params.append("date", date);
 
-    const res = await fetch(`https://battlepurse-17.onrender.com/api/wallet/leaderboard?${params}`, {
+    const res = await fetch(`https://battlepurse-78.onrender.com/api/wallet/leaderboard?${params}`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
 
