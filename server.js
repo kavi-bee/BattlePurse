@@ -7,6 +7,7 @@ const path = require("path");
 dotenv.config();
 
 const app = express();
+process.setMaxListeners(20);
 
 /* ======================
    MIDDLEWARE
@@ -25,6 +26,10 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
    MONGODB CONNECTION
 ====================== */
 mongoose.set("bufferCommands", false);
+mongoose.connect(process.env.MONGO_URI, {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5000
+});
 
 mongoose
   .connect(process.env.MONGO_URI)

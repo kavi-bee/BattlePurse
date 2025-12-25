@@ -34,7 +34,9 @@ const sendOTP = require("../utils/sendOTP");
 
 
 const Otp = require("../models/Otp");
-const mailer = require("../utils/mailer");
+const mailer = require("../utils/sendEmail");
+const sendEmail = require("../utils/sendEmail");
+
 
 /* 🔢 OTP generator */
 const genOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -44,6 +46,11 @@ const genOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 ================================ */
 /* ================================
    REGISTER → SEND EMAIL OTP
+================================ */
+
+
+/* ================================
+   REGISTER → SEND OTP
 ================================ */
 router.post("/register-email", async (req, res) => {
   try {
@@ -69,16 +76,16 @@ router.post("/register-email", async (req, res) => {
       email,
       phone,
       name,
-      password, // temp only
+      password,
       otp,
       purpose: "register",
       expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     });
 
-    // 🚀 SEND EMAIL IN BACKGROUND (NO BLOCKING)
-    mailer.sendMail({
+    // ✅ SEND EMAIL
+    sendEmail({
       to: email,
-      subject: "Registration OTP",
+      subject: "BattlePurse Registration OTP",
       html: `<h2>Your OTP is <b>${otp}</b></h2>`
     }).catch(err => {
       console.error("OTP email failed:", err.message);
@@ -87,12 +94,14 @@ router.post("/register-email", async (req, res) => {
     res.json({ success: true, msg: "OTP sent to email" });
 
   } catch (err) {
-    console.error("Register-email error:", err.message);
-    res.status(500).json({
-      msg: "Service temporarily slow. Please try again."
-    });
+    console.error("Register-email error:", err);
+    res.status(500).json({ msg: "Server error" });
   }
 });
+
+/* ================================
+   VERIFY OTP → CREATE USER
+================================ */
 router.post("/verify-email-otp", async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -140,6 +149,51 @@ router.post("/verify-email-otp", async (req, res) => {
   }
 });
 
+/* ================================
+   LOGIN
+================================ */
+router.post("/login", async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+
+    if (!phone || !password) {
+      return res.status(400).json({ msg: "Phone and password required" });
+    }
+
+    const user = await User.findOne({ phone });
+    if (!user) {
+      return res.status(400).json({ msg: "User not found" });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(400).json({ msg: "Wrong password" });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        isAdmin: user.isAdmin === true
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "365d" }
+    );
+
+    res.json({
+      success: true,
+      token,
+      isAdmin: user.isAdmin === true
+    });
+
+  } catch (err) {
+    console.error("Login error:", err.message);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+/* ================================
+   FORGOT → SEND OTP
+================================ */
 router.post("/forgot/send-otp", async (req, res) => {
   try {
     const { phone, email } = req.body;
@@ -147,7 +201,7 @@ router.post("/forgot/send-otp", async (req, res) => {
     const user = await User.findOne({ phone, email }).lean();
     if (!user) return res.status(400).json({ msg: "User not found" });
 
-    const otp = genOtp();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     await Otp.deleteMany({ email, purpose: "forgot" });
 
@@ -159,7 +213,7 @@ router.post("/forgot/send-otp", async (req, res) => {
       expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     });
 
-    mailer.sendMail({
+    sendEmail({
       to: email,
       subject: "Password Reset OTP",
       html: `<h2>Your OTP is <b>${otp}</b></h2>`
@@ -175,6 +229,9 @@ router.post("/forgot/send-otp", async (req, res) => {
   }
 });
 
+/* ================================
+   RESEND OTP
+================================ */
 router.post("/resend-otp", async (req, res) => {
   try {
     const { email, purpose } = req.body;
@@ -186,7 +243,7 @@ router.post("/resend-otp", async (req, res) => {
     const prev = await Otp.findOne({ email, purpose });
     if (!prev) return res.status(400).json({ msg: "No OTP request found" });
 
-    const otp = genOtp();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     await Otp.deleteMany({ email, purpose });
 
@@ -200,7 +257,7 @@ router.post("/resend-otp", async (req, res) => {
       expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     });
 
-    mailer.sendMail({
+    sendEmail({
       to: email,
       subject: "Your OTP (Resent)",
       html: `<h2>Your new OTP is <b>${otp}</b></h2>`
@@ -215,6 +272,8 @@ router.post("/resend-otp", async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 });
+
+
 
 router.post("/register-email", async (req, res) => {
   try {
