@@ -1,17 +1,22 @@
-
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
-  secure: false, // MUST be false for 587
+  secure: false, // TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
   }
 });
 
-module.exports = transporter;
+async function sendEmail({ to, subject, html }) {
+  return await transporter.sendMail({
+    from: `"BattlePurse" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    html
+  });
+}
+
+module.exports = sendEmail;

@@ -57,6 +57,55 @@ router.post("/register-email", async (req, res) => {
   try {
     const { name, phone, email, password } = req.body;
 
+    if (!name || !phone || !email || !password) {
+      return res.status(400).json({ msg: "All fields required" });
+    }
+
+    const exists = await User.findOne({
+      $or: [{ phone }, { email }]
+    });
+
+    if (exists) {
+      return res.status(400).json({ msg: "User already exists" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await Otp.deleteMany({ email, purpose: "register" });
+
+    await Otp.create({
+      name,
+      phone,
+      email,
+      password,
+      otp,
+      purpose: "register",
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    });
+
+    // ✅ SEND EMAIL (DO NOT FAIL API IF EMAIL FAILS)
+    sendEmail({
+  to: email,
+  subject: "BattlePurse OTP",
+  html: `<h2>Your OTP is <b>${otp}</b></h2>`
+})
+.then(() => console.log("✅ OTP email sent"))
+.catch(err => console.error("❌ Email failed:", err.message));
+
+res.json({ success: true, msg: "OTP sent" });
+
+   
+
+  } catch (err) {
+    console.error("Register-email error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+router.post("/register-email", async (req, res) => {
+  try {
+    const { name, phone, email, password } = req.body;
+
     if (!name || !phone || !email || !password)
       return res.status(400).json({ msg: "All fields required" });
 

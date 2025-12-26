@@ -1,10 +1,9 @@
+require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
-const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
-
-dotenv.config();
 
 const app = express();
 process.setMaxListeners(20);
@@ -13,7 +12,9 @@ process.setMaxListeners(20);
    DEBUG ENV
 ====================== */
 console.log("RESEND KEY LOADED:", !!process.env.RESEND_API_KEY);
+
 console.log("EMAIL USER LOADED:", !!process.env.EMAIL_USER);
+console.log("EMAIL PASS LOADED:", !!process.env.EMAIL_PASS);
 
 /* ======================
    MIDDLEWARE
@@ -29,7 +30,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /* ======================
-   MONGODB CONNECTION (ONLY ONCE)
+   MONGODB CONNECTION
 ====================== */
 mongoose
   .connect(process.env.MONGO_URI, {
